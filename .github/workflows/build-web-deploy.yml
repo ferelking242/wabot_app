@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 30
     environment:
       name: github-pages
-      url: https://ferelking242.github.io/wabot
+      url: https://ferelking242.github.io/wabot_app/
 
     steps:
       - name: Checkout
@@ -47,7 +47,7 @@ jobs:
           flutter build web \
             --release \
             --web-renderer canvaskit \
-            --base-href /wabot/ \
+            --base-href /wabot_app/ \
             --pwa-strategy offline-first \
             --no-tree-shake-icons
 
@@ -59,7 +59,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build/web
-          destination_dir: wabot
           commit_message: 'deploy: update wabot web dashboard [${{ github.sha }}]'
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
@@ -67,6 +66,6 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## ✅ Deployed!" >> $GITHUB_STEP_SUMMARY
-          echo "🌐 Live at: https://ferelking242.github.io/wabot" >> $GITHUB_STEP_SUMMARY
-          echo "📅 Deployed: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployed!" >> $GITHUB_STEP_SUMMARY
+          echo "Live at: https://ferelking242.github.io/wabot_app/" >> $GITHUB_STEP_SUMMARY
+          echo "Deployed: $(date -u)" >> $GITHUB_STEP_SUMMARY
