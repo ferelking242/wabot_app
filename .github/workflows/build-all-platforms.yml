@@ -1,0 +1,178 @@
+name: Build All Platforms
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Platforms to build (comma-separated: android,web,linux,windows,macos)'
+        required: false
+        default: 'android,web,linux,windows'
+
+jobs:
+  build-android:
+    name: Android (All ABIs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.x'
+          channel: stable
+          cache: true
+      - run: flutter create --org com.ferelking242.wabot --project-name wabot_app --platforms=android . 2>/dev/null || true
+      - run: flutter pub get
+      - name: Build APK (all ABIs)
+        run: flutter build apk --split-per-abi --release --no-tree-shake-icons
+      - name: Build App Bundle
+        run: flutter build appbundle --release --no-tree-shake-icons
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-builds
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/bundle/release/*.aab
+          retention-days: 30
+
+  build-web:
+    name: Web (Flutter CanvasKit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.x'
+          channel: stable
+          cache: true
+      - run: flutter create --org com.ferelking242.wabot --project-name wabot_app --platforms=web . 2>/dev/null || true
+      - run: flutter pub get
+      - run: flutter build web --release --web-renderer canvaskit --no-tree-shake-icons
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: build/web/
+          retention-days: 30
+
+  build-linux:
+    name: Linux Desktop
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ninja-build libgtk-3-dev libblkid-dev liblzma-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.x'
+          channel: stable
+          cache: true
+      - run: flutter create --org com.ferelking242.wabot --project-name wabot_app --platforms=linux . 2>/dev/null || true
+      - run: flutter pub get
+      - run: flutter build linux --release --no-tree-shake-icons
+      - name: Package Linux build
+        run: |
+          cd build/linux/x64/release/bundle
+          tar -czf ../../../../../wabot-linux-x64.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: wabot-linux-x64.tar.gz
+          retention-days: 30
+
+  build-windows:
+    name: Windows Desktop
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.x'
+          channel: stable
+          cache: true
+      - run: flutter create --org com.ferelking242.wabot --project-name wabot_app --platforms=windows . 2>$null
+      - run: flutter pub get
+      - run: flutter build windows --release --no-tree-shake-icons
+      - name: Package Windows build
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath wabot-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: wabot-windows-x64.zip
+          retention-days: 30
+
+  build-macos:
+    name: macOS Desktop
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.x'
+          channel: stable
+          cache: true
+      - run: flutter create --org com.ferelking242.wabot --project-name wabot_app --platforms=macos . 2>/dev/null || true
+      - run: flutter pub get
+      - run: flutter build macos --release --no-tree-shake-icons
+      - name: Package macOS build
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -r ../../../../../wabot-macos.zip wabot_app.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: wabot-macos.zip
+          retention-days: 30
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-android, build-web, build-linux, build-windows]
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Wabot Dashboard ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/android-builds/*.apk
+            artifacts/android-builds/*.aab
+            artifacts/linux-build/*.tar.gz
+            artifacts/windows-build/*.zip
+            artifacts/macos-build/*.zip
+          body: |
+            ## Wabot Dashboard ${{ github.ref_name }}
+
+            ### Downloads
+            | Platform | File |
+            |----------|------|
+            | Android ARM64 | `app-arm64-v8a-release.apk` |
+            | Android ARM32 | `app-armeabi-v7a-release.apk` |
+            | Android (Play Store) | `app-release.aab` |
+            | Linux x64 | `wabot-linux-x64.tar.gz` |
+            | Windows x64 | `wabot-windows-x64.zip` |
+
+            ### Web
+            🌐 Live at: https://ferelking242.github.io/wabot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

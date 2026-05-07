@@ -1,0 +1,72 @@
+name: Build Web & Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'web/**'
+      - '.github/workflows/build-web-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    name: Build Flutter Web & Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: https://ferelking242.github.io/wabot
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.x'
+          channel: stable
+          cache: true
+
+      - name: Generate platform files
+        run: flutter create --org com.ferelking242.wabot --project-name wabot_app --platforms=web . 2>/dev/null || true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Flutter Web
+        run: |
+          flutter build web \
+            --release \
+            --web-renderer canvaskit \
+            --base-href /wabot/ \
+            --pwa-strategy offline-first \
+            --no-tree-shake-icons
+
+      - name: Verify build
+        run: ls -la build/web/
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/web
+          destination_dir: wabot
+          commit_message: 'deploy: update wabot web dashboard [${{ github.sha }}]'
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          cname: ''
+
+      - name: Summary
+        run: |
+          echo "## ✅ Deployed!" >> $GITHUB_STEP_SUMMARY
+          echo "🌐 Live at: https://ferelking242.github.io/wabot" >> $GITHUB_STEP_SUMMARY
+          echo "📅 Deployed: $(date -u)" >> $GITHUB_STEP_SUMMARY
