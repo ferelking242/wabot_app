@@ -21,9 +21,6 @@ jobs:
     name: Build Flutter Web & Deploy
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment:
-      name: github-pages
-      url: https://ferelking242.github.io/wabot_app/
 
     steps:
       - name: Checkout
