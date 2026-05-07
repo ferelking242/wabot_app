@@ -64,7 +64,3 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
-  fonts:
-    - family: GeistMono
-      fonts:
-        - asset: assets/fonts/GeistMono-Regular.ttf
