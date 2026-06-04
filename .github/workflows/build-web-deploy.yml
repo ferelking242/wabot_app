@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   build-and-deploy:
-    name: Build Flutter Web & Deploy
+    name: Build Flutter Web & Deploy to ferelking242.github.io/wabot
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -49,7 +49,7 @@ jobs:
           flutter build web \
             --release \
             --web-renderer canvaskit \
-            --base-href /wabot_app/ \
+            --base-href /wabot/ \
             --pwa-strategy offline-first \
             --no-tree-shake-icons
 
@@ -69,6 +69,8 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Deployed!" >> $GITHUB_STEP_SUMMARY
-          echo "Live at: https://ferelking242.github.io/wabot_app/" >> $GITHUB_STEP_SUMMARY
-          echo "Deployed: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Deployed Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🌐 **Live at:** https://ferelking242.github.io/wabot" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "🕐 **Deployed:** $(date -u)" >> $GITHUB_STEP_SUMMARY
