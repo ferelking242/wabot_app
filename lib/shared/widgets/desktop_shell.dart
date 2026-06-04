@@ -680,7 +680,7 @@ class _DarkHeaderBtnState extends State<_DarkHeaderBtn> {
 // ─────────────────────────────────────────────────────────────────────────────
 class _WabotLogo extends StatelessWidget {
   final double size;
-  const _WabotLogo({required this.size});
+  const _WabotLogo({super.key, required this.size});
 
   @override
   Widget build(BuildContext context) {
