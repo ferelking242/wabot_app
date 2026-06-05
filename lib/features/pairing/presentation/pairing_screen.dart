@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/config/app_config.dart';
-import '../../../core/routing/app_router.dart';
 import '../../../presentation/providers/auth_providers.dart';
 import '../providers/pairing_provider.dart';
 import '../../auth/presentation/splash_screen.dart' show WabotLogoWidget;
@@ -62,7 +61,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
     ref.listen(pairingProvider, (_, next) {
       if (next.status == PairingStatus.connected && mounted) {
         Future.delayed(const Duration(milliseconds: 800), () {
-          if (mounted) context.go(AppRoutes.home);
+          if (mounted) context.go('/home');
         });
       }
     });
