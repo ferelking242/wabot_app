@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/services/platform_service.dart';
 import '../../../presentation/providers/auth_providers.dart';
 import '../providers/pairing_provider.dart';
 import '../../auth/presentation/splash_screen.dart' show WabotLogoWidget;
@@ -67,7 +68,6 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
     });
 
     final st = ref.watch(pairingProvider);
-    final key = ref.watch(authProvider);
 
     return Scaffold(
       backgroundColor: _bg,
@@ -100,12 +100,10 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
                     style: const TextStyle(color: _muted, fontSize: 13))
                     .animate(delay: 150.ms).fadeIn(),
 
-                  // API key info
-                  if (key != null) ...[
-                    const SizedBox(height: 8),
-                    _KeyBadge(apiKey: key)
-                      .animate(delay: 200.ms).fadeIn(),
-                  ],
+                  // Platform badge (local bot vs Aivos Cloud)
+                  const SizedBox(height: 8),
+                  _PlatformBadge()
+                    .animate(delay: 200.ms).fadeIn(),
 
                   const SizedBox(height: 24),
 
@@ -478,14 +476,11 @@ class _ErrorBanner extends StatelessWidget {
 
 // ── API Key badge ──────────────────────────────────────────────────────────────
 
-class _KeyBadge extends StatelessWidget {
-  final String apiKey;
-  const _KeyBadge({required this.apiKey});
+class _PlatformBadge extends StatelessWidget {
+  const _PlatformBadge();
   @override
   Widget build(BuildContext context) {
-    final display = apiKey.length > 16
-      ? '${apiKey.substring(0, 8)}…${apiKey.substring(apiKey.length - 6)}'
-      : apiKey;
+    final local = PlatformService.runsLocalBot;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -493,9 +488,14 @@ class _KeyBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _g.withOpacity(0.2))),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.vpn_key_rounded, size: 11, color: _g.withOpacity(0.7)),
+        Icon(local ? Icons.smartphone_rounded : Icons.cloud_rounded,
+          size: 11, color: _g.withOpacity(0.7)),
         const SizedBox(width: 5),
-        Text(display, style: TextStyle(color: _g.withOpacity(0.8), fontSize: 11, fontFamily: 'monospace')),
+        Text(
+          local
+            ? 'Bot local · ${PlatformService.platformLabel}'
+            : 'Aivos Cloud',
+          style: TextStyle(color: _g.withOpacity(0.8), fontSize: 11)),
       ]));
   }
 }
