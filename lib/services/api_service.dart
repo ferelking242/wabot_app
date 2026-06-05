@@ -6,12 +6,15 @@ import '../core/constants/app_constants.dart';
 class ApiService {
   late final Dio _dio;
 
-  ApiService({required String baseUrl}) {
+  ApiService({required String baseUrl, String? apiKey}) {
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
       connectTimeout: const Duration(milliseconds: AppConstants.connectTimeout),
       receiveTimeout: const Duration(milliseconds: AppConstants.apiTimeout),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        if (apiKey != null && apiKey.isNotEmpty) 'X-API-Key': apiKey,
+      },
     ));
 
     _dio.interceptors.add(LogInterceptor(
@@ -21,8 +24,13 @@ class ApiService {
     ));
 
     _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        // Refresh API key on every request in case user updated it
+        final key = StorageService.getString(AppConstants.keyApiKey);
+        if (key != null && key.isNotEmpty) options.headers['X-API-Key'] = key;
+        handler.next(options);
+      },
       onError: (error, handler) {
-        // Transform errors to readable messages
         final message = error.response?.data?['message'] ?? error.message ?? 'Unknown error';
         handler.next(DioException(
           requestOptions: error.requestOptions,
@@ -34,116 +42,179 @@ class ApiService {
     ));
   }
 
-  void updateBaseUrl(String url) {
-    _dio.options.baseUrl = url;
+  void updateBaseUrl(String url) => _dio.options.baseUrl = url;
+  void updateApiKey(String key) => _dio.options.headers['X-API-Key'] = key;
+
+  // ── Instance / Connection ─────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getInstanceStatus() async {
+    try {
+      final res = await _dio.get(AppConstants.apiStatus);
+      return res.data as Map<String, dynamic>;
+    } catch (_) {
+      return {'instance': <String, dynamic>{'connected': false}};
+    }
   }
+
+  Future<Map<String, dynamic>> getQrCode() async {
+    try {
+      final res = await _dio.get(AppConstants.apiQr);
+      return res.data as Map<String, dynamic>;
+    } catch (_) {
+      return <String, dynamic>{'connected': false, 'qr': null};
+    }
+  }
+
+  Future<Map<String, dynamic>> requestPairingCode(String phone) async {
+    final res = await _dio.post(AppConstants.apiPair, data: {'phone': phone});
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> reconnect() async {
+    try {
+      final res = await _dio.post('/api/v1/instance/reconnect');
+      return res.data as Map<String, dynamic>;
+    } catch (_) {
+      return <String, dynamic>{'success': false};
+    }
+  }
+
+  // ── Dashboard ─────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> getBotStatus() async {
     try {
-      final res = await _dio.get('/api/status');
-      return res.data as Map<String, dynamic>;
-    } catch (e) {
+      final res = await _dio.get(AppConstants.apiStatus);
+      final d = res.data as Map<String, dynamic>;
+      final inst = d['instance'] as Map<String, dynamic>? ?? {};
+      final proc = d['process'] as Map<String, dynamic>? ?? {};
+      final mem  = proc['memory'] as Map<String, dynamic>? ?? {};
+      return {
+        'status': inst['connected'] == true ? 'online' : 'offline',
+        'uptime': proc['uptime'] ?? 0,
+        'phoneNumber': inst['phone'] ?? '',
+        'name': inst['name'] ?? 'Wabot',
+        'sessionsCount': 1,
+        'groupsCount': 0,
+        'messagesTotal': 0,
+        'messagesPerMin': 0,
+        'ramUsage': _parseRam(mem['heapUsed']),
+        'ramTotal': _parseRam(mem['rss']),
+        'cpuUsage': 0.0,
+        'wsLatency': 0,
+        'lastSeen': DateTime.now().toIso8601String(),
+        'version': AppConstants.appVersion,
+        'node': proc['node'] ?? '',
+      };
+    } catch (_) {
       return _mockBotStatus();
     }
   }
 
-  Future<Map<String, dynamic>> getMetrics() async {
-    try {
-      final res = await _dio.get('/api/metrics');
-      return res.data as Map<String, dynamic>;
-    } catch (e) {
-      return _mockMetrics();
-    }
+  int _parseRam(dynamic val) {
+    if (val == null) return 0;
+    return int.tryParse(val.toString().replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
   }
 
-  Future<String?> getPairingCode() async {
+  Future<Map<String, dynamic>> getMetrics() async {
     try {
-      final res = await _dio.post('/api/pairing/code');
-      return res.data['code'] as String?;
-    } catch (e) {
-      return null;
+      final res = await _dio.get('/api/v1/metrics');
+      return res.data as Map<String, dynamic>;
+    } catch (_) {
+      return _mockMetrics();
     }
   }
 
   Future<List<Map<String, dynamic>>> getSessions() async {
     try {
-      final res = await _dio.get('/api/sessions');
-      return List<Map<String, dynamic>>.from(res.data as List);
-    } catch (e) {
+      final status = await getInstanceStatus();
+      final inst = status['instance'] as Map<String, dynamic>? ?? {};
+      if (inst['connected'] == true) {
+        return [{
+          'id': 'main',
+          'name': inst['name'] ?? 'Main Session',
+          'phoneNumber': inst['phone'] ?? '',
+          'status': 'connected',
+          'platform': inst['platform'] ?? 'WhatsApp',
+          'connectedAt': DateTime.now().toIso8601String(),
+        }];
+      }
+      return [];
+    } catch (_) {
       return _mockSessions();
     }
   }
 
   Future<List<Map<String, dynamic>>> getChats({int page = 1}) async {
     try {
-      final res = await _dio.get('/api/chats', queryParameters: {'page': page, 'limit': AppConstants.pageSize});
-      return List<Map<String, dynamic>>.from(res.data['chats'] as List);
-    } catch (e) {
+      final res = await _dio.get('/api/v1/groups',
+        queryParameters: {'page': page, 'limit': AppConstants.pageSize});
+      final list = res.data as List? ?? [];
+      return list.cast<Map<String, dynamic>>();
+    } catch (_) {
       return _mockChats();
     }
   }
 
   Future<List<Map<String, dynamic>>> getLogs({int limit = 100}) async {
     try {
-      final res = await _dio.get('/api/logs', queryParameters: {'limit': limit});
-      return List<Map<String, dynamic>>.from(res.data as List);
-    } catch (e) {
+      final res = await _dio.get(AppConstants.apiLogs, queryParameters: {'limit': limit});
+      final data = res.data;
+      if (data is List) return data.cast<Map<String, dynamic>>();
+      if (data is Map && data['logs'] is List) {
+        return (data['logs'] as List).cast<Map<String, dynamic>>();
+      }
+      return _mockLogs();
+    } catch (_) {
       return _mockLogs();
     }
   }
 
   Future<Map<String, dynamic>> getAnalytics({String period = '7d'}) async {
     try {
-      final res = await _dio.get('/api/analytics', queryParameters: {'period': period});
+      final res = await _dio.get('/api/v1/analytics', queryParameters: {'period': period});
       return res.data as Map<String, dynamic>;
-    } catch (e) {
+    } catch (_) {
       return _mockAnalytics();
     }
   }
 
   Future<bool> restartBot() async {
     try {
-      await _dio.post('/api/bot/restart');
+      await _dio.post('/api/v1/instance/reconnect');
       return true;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
 
-  Future<bool> stopBot() async {
-    try {
-      await _dio.post('/api/bot/stop');
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
+  Future<bool> stopBot() async => false;
 
   Future<bool> deleteSession(String sessionId) async {
     try {
-      await _dio.delete('/api/sessions/$sessionId');
+      await _dio.delete('/api/v1/sessions/$sessionId');
       return true;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
 
-  // Mock data for offline/demo mode
+  // ── Mock fallbacks (offline / demo mode) ─────────────────────────────────
+
   Map<String, dynamic> _mockBotStatus() => {
-    'status': 'online',
-    'uptime': 86400,
-    'phoneNumber': '+242064235945',
-    'name': 'WaBot',
-    'sessionsCount': 1,
-    'groupsCount': 47,
-    'messagesTotal': 18430,
-    'messagesPerMin': 12,
-    'ramUsage': 245,
+    'status': 'offline',
+    'uptime': 0,
+    'phoneNumber': '',
+    'name': 'Wabot',
+    'sessionsCount': 0,
+    'groupsCount': 0,
+    'messagesTotal': 0,
+    'messagesPerMin': 0,
+    'ramUsage': 0,
     'ramTotal': 512,
-    'cpuUsage': 18.5,
-    'wsLatency': 42,
+    'cpuUsage': 0.0,
+    'wsLatency': 0,
     'lastSeen': DateTime.now().toIso8601String(),
-    'version': '4.3',
+    'version': AppConstants.appVersion,
   };
 
   Map<String, dynamic> _mockMetrics() => {
@@ -209,5 +280,6 @@ class ApiService {
 
 final apiServiceProvider = Provider<ApiService>((ref) {
   final url = StorageService.getString(AppConstants.keyApiUrl) ?? AppConstants.defaultApiUrl;
-  return ApiService(baseUrl: url);
+  final key = StorageService.getString(AppConstants.keyApiKey);
+  return ApiService(baseUrl: url, apiKey: key);
 });
