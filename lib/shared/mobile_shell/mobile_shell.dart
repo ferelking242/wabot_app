@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
 import '../../presentation/providers/auth_providers.dart';
+import '../pages/notifications_page.dart';
+import '../pages/search_page.dart';
 import '../widgets/responsive_role_shell.dart' show RoleNavEntry;
 
 // ── Design tokens ──────────────────────────────────────────────────────────
@@ -814,4 +816,51 @@ class _SidebarPatternPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_) => false;
+}
+
+// ── Placeholder page ──────────────────────────────────────────────────────
+class _Placeholder extends StatelessWidget {
+  final String title;
+  const _Placeholder(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _pageBg,
+      body: SafeArea(
+        child: Column(children: [
+          Container(
+            color: _white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 38, height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5EEE6),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.arrow_back_rounded, color: _ink, size: 20),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(title, style: const TextStyle(color: _ink, fontSize: 17,
+                  fontWeight: FontWeight.w700)),
+            ]),
+          ),
+          Expanded(
+            child: Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.person_outline_rounded, size: 64, color: _terra),
+                const SizedBox(height: 16),
+                Text(title, style: const TextStyle(fontSize: 20,
+                    fontWeight: FontWeight.w700, color: _ink)),
+              ]),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 }
