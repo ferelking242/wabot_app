@@ -1,3 +1,9 @@
+import java.net.URL
+import java.io.InputStream
+import java.io.OutputStream
+import java.io.FileOutputStream
+import java.util.zip.ZipInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -24,12 +30,12 @@ tasks.register("downloadNodeJsMobile") {
         val zipFile = File(buildDir, "nodejs-mobile-android.zip")
         zipFile.parentFile.mkdirs()
         if (!zipFile.exists()) {
-            java.net.URL(nodeJsMobileUrl).openStream().use { src: java.io.InputStream ->
-                zipFile.outputStream().use { dst: java.io.OutputStream -> src.copyTo(dst) }
+            URL(nodeJsMobileUrl).openStream().use { src: InputStream ->
+                zipFile.outputStream().use { dst: OutputStream -> src.copyTo(dst) }
             }
         }
         println("Extracting binaries and headers…")
-        java.util.zip.ZipInputStream(zipFile.inputStream()).use { zis: java.util.zip.ZipInputStream ->
+        ZipInputStream(zipFile.inputStream()).use { zis: ZipInputStream ->
             var entry = zis.nextEntry
             while (entry != null) {
                 val dest: File? = when {
