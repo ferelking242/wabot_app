@@ -39,6 +39,9 @@ dependencies:
   # Storage
   shared_preferences: ^2.3.3
 
+  # Platform paths (for Android data dir)
+  path_provider: ^2.1.4
+
   # HTTP
   http: ^1.2.0
   dio: ^5.7.0
@@ -58,3 +61,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/nodejs-project/
