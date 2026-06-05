@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'storage_service.dart';
 import '../core/constants/app_constants.dart';
+import '../core/services/platform_service.dart';
 
 class ApiService {
   late final Dio _dio;
@@ -25,9 +25,9 @@ class ApiService {
 
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
-        // Refresh API key on every request in case user updated it
-        final key = StorageService.getString(AppConstants.keyApiKey);
-        if (key != null && key.isNotEmpty) options.headers['X-API-Key'] = key;
+        // Always use platform-determined key (no user input needed)
+        final key = PlatformService.botApiKey;
+        if (key.isNotEmpty) options.headers['X-API-Key'] = key;
         handler.next(options);
       },
       onError: (error, handler) {
@@ -279,7 +279,8 @@ class ApiService {
 }
 
 final apiServiceProvider = Provider<ApiService>((ref) {
-  final url = StorageService.getString(AppConstants.keyApiUrl) ?? AppConstants.defaultApiUrl;
-  final key = StorageService.getString(AppConstants.keyApiKey);
-  return ApiService(baseUrl: url, apiKey: key);
+  return ApiService(
+    baseUrl: PlatformService.botApiUrl,
+    apiKey:  PlatformService.botApiKey,
+  );
 });
