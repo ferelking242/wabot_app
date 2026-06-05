@@ -12,3 +12,7 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# nodejs-mobile — generated at build time by Gradle download task
+app/src/main/jniLibs/
+app/src/main/cpp/node_include/
