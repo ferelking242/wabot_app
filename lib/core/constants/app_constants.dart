@@ -45,6 +45,7 @@ abstract final class AppConstants {
   // Routes
   static const String routeOnboarding = '/onboarding';
   static const String routeAuth = '/auth';
+  static const String routePair = '/pair';
   static const String routeDashboard = '/';
   static const String routeChats = '/chats';
   static const String routeDevices = '/devices';
@@ -53,4 +54,16 @@ abstract final class AppConstants {
   static const String routeAnalytics = '/analytics';
   static const String routeAutomation = '/automation';
   static const String routeSettings = '/settings';
+
+  // API key storage key
+  static const String keyApiKey = 'wabot_api_key';
+
+  // wabot REST API paths (base = keyApiUrl)
+  static const String apiStatus   = '/api/v1/instance/status';
+  static const String apiQr       = '/api/v1/instance/qr';
+  static const String apiPair     = '/api/v1/instance/pair';
+  static const String apiInfo     = '/api/v1/instance/info';
+  static const String apiMessages = '/api/v1/messages';
+  static const String apiLogs     = '/api/v1/logs';
+  static const String apiGroups   = '/api/v1/groups';
 }
