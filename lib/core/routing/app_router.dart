@@ -14,13 +14,14 @@ class AppRoutes {
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final notifier = ref.read(authProvider.notifier);
+
   return GoRouter(
     initialLocation: AppRoutes.splash,
-    refreshListenable: _AuthListenable(ref),
+    refreshListenable: _AuthListenable(ref, notifier),
     redirect: (ctx, state) {
-      final notifier = ref.read(authProvider.notifier);
-      final key      = ref.read(authProvider);
-      final loc      = state.matchedLocation;
+      final key = ref.read(authProvider);
+      final loc = state.matchedLocation;
 
       // Still loading from SharedPreferences — stay on splash
       if (!notifier.loaded) {
@@ -46,8 +47,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
+/// Listens to both auth state changes AND the one-shot loaded signal,
+/// so GoRouter always re-evaluates the redirect after init completes.
 class _AuthListenable extends ChangeNotifier {
-  _AuthListenable(Ref ref) {
+  _AuthListenable(Ref ref, AuthNotifier authNotifier) {
     ref.listen(authProvider, (_, __) => notifyListeners());
+    authNotifier.loadedNotifier.addListener(notifyListeners);
   }
 }
