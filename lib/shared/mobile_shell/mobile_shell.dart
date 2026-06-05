@@ -325,7 +325,7 @@ class _SmartHeader extends StatelessWidget {
                 errorBuilder: (_, __, ___) => Image.asset(
                   'assets/images/logo.png', width: 28, height: 28,
                   errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.school_rounded, size: 26, color: _terra),
+                    const Icon(Icons.chat_rounded, size: 26, color: _terra),
                 )),
             const SizedBox(width: 7),
             Text(AppConfig.appName,
