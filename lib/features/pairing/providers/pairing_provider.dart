@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../presentation/providers/auth_providers.dart';
 import '../../../services/api_service.dart';
 
 enum PairingStatus { idle, loading, waitingQr, waitingCode, connected, error }
@@ -60,6 +61,7 @@ class PairingNotifier extends Notifier<PairingState> {
       if (data['instance']?['connected'] == true) {
         _stopTimers();
         state = state.copyWith(status: PairingStatus.connected);
+        await ref.read(authProvider.notifier).markSetupDone();
       } else {
         state = state.copyWith(status: PairingStatus.idle);
       }
@@ -84,6 +86,7 @@ class PairingNotifier extends Notifier<PairingState> {
       if (data['connected'] == true) {
         _stopTimers();
         state = state.copyWith(status: PairingStatus.connected);
+        await ref.read(authProvider.notifier).markSetupDone();
         return;
       }
       if (data['qr'] != null) {
@@ -110,6 +113,7 @@ class PairingNotifier extends Notifier<PairingState> {
       final data = await _api.requestPairingCode(phone);
       if (data['connected'] == true) {
         state = state.copyWith(status: PairingStatus.connected);
+        await ref.read(authProvider.notifier).markSetupDone();
         return;
       }
       if (data['code'] != null) {
@@ -139,6 +143,7 @@ class PairingNotifier extends Notifier<PairingState> {
       if (data['instance']?['connected'] == true) {
         _stopTimers();
         state = state.copyWith(status: PairingStatus.connected);
+        await ref.read(authProvider.notifier).markSetupDone();
       }
     } catch (_) {}
   }
