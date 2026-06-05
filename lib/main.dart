@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 
 import 'core/config/app_config.dart';
 import 'core/routing/app_router.dart';
+import 'core/services/bot_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'services/storage_service.dart';
@@ -11,6 +14,8 @@ import 'services/storage_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await StorageService.init();
+  // Start embedded bot on Android (non-blocking)
+  unawaited(BotService.startIfNeeded());
   runApp(const ProviderScope(child: WabotApp()));
 }
 
