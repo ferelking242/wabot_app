@@ -1,34 +1,47 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/constants/app_constants.dart';
 
-class AuthNotifier extends StateNotifier<String?> {
+/// Auth state: has the user paired WhatsApp at least once?
+/// null  → first launch  → show pairing screen
+/// true  → already set up → go straight to dashboard
+class AuthNotifier extends StateNotifier<bool?> {
   AuthNotifier() : super(null) { _load(); }
 
   bool loaded = false;
 
-  // A listenable that fires once loading completes — GoRouter uses this.
+  /// GoRouter listens to this to re-evaluate redirect after async init.
   final loadedNotifier = ChangeNotifier();
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    final key   = prefs.getString('wabot_api_key');
+    final done  = prefs.getBool(AppConstants.keySetupDone);
     loaded = true;
-    state  = key;
-    // Notify GoRouter even if state didn't change (null → null case).
+    state  = done; // null first launch, true after first pairing
     loadedNotifier.notifyListeners();
   }
 
-  Future<void> signIn(String apiKey) async {
-    await (await SharedPreferences.getInstance()).setString('wabot_api_key', apiKey);
-    state = apiKey;
+  /// Called by PairingNotifier when WhatsApp connection is confirmed.
+  Future<void> markSetupDone() async {
+    await (await SharedPreferences.getInstance())
+        .setBool(AppConstants.keySetupDone, true);
+    if (state != true) {
+      state = true;
+      loadedNotifier.notifyListeners();
+    }
   }
 
+  /// Reset — clears setup flag → back to pairing screen.
   Future<void> signOut() async {
-    await (await SharedPreferences.getInstance()).remove('wabot_api_key');
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(AppConstants.keySetupDone);
+    await prefs.remove(AppConstants.keyApiKey);
+    await prefs.remove(AppConstants.keyApiUrl);
     state = null;
+    loadedNotifier.notifyListeners();
   }
 }
 
 final authProvider =
-    StateNotifierProvider<AuthNotifier, String?>((ref) => AuthNotifier());
+    StateNotifierProvider<AuthNotifier, bool?>((ref) => AuthNotifier());
