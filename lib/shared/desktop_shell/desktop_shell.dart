@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/theme/theme_controller.dart';
+import '../../presentation/providers/auth_providers.dart';
 import '../pages/notifications_page.dart';
 import '../pages/settings_page.dart';
 
