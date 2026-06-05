@@ -39,4 +39,3 @@ class WabotSurface {
     border: Border.all(color: _border),
   );
 }
-typedef ScolarisSurface = WabotSurface;
