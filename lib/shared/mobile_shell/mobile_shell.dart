@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
+import '../../presentation/providers/auth_providers.dart';
 import '../pages/notifications_page.dart';
 import '../pages/search_page.dart';
 import '../widgets/responsive_role_shell.dart' show RoleNavEntry;
