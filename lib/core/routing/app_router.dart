@@ -2,15 +2,14 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/pairing/presentation/pairing_screen.dart';
 import '../../presentation/providers/auth_providers.dart';
 import '../../shared/widgets/wabot_shell.dart';
 
+/// App route constants.
 class AppRoutes {
   static const splash = '/';
-  static const login  = '/login';
   static const pair   = '/pair';
   static const home   = '/home';
 }
@@ -22,22 +21,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.splash,
     refreshListenable: _AuthListenable(ref, notifier),
     redirect: (ctx, state) {
-      final key = ref.read(authProvider);
-      final loc = state.matchedLocation;
+      final loc       = state.matchedLocation;
+      final setupDone = ref.read(authProvider); // bool? — null/false/true
 
-      // Still loading from SharedPreferences — stay on splash
+      // Still loading from SharedPreferences → stay on splash
       if (!notifier.loaded) {
         return loc == AppRoutes.splash ? null : AppRoutes.splash;
       }
 
-      // Not logged in → go to login (enter API key + URL)
-      if (key == null) {
-        return loc == AppRoutes.login ? null : AppRoutes.login;
+      // Splash is just a loading screen — always move on
+      if (loc == AppRoutes.splash) {
+        // setupDone == true → go straight to dashboard
+        // setupDone != true → go to pairing (first launch or signed out)
+        return setupDone == true ? AppRoutes.home : AppRoutes.pair;
       }
 
-      // Logged in → skip splash/login, land on pairing screen first
-      // The pairing screen auto-redirects to /home when WhatsApp is connected
-      if (loc == AppRoutes.login || loc == AppRoutes.splash) {
+      // If on pairing and already set up → go to dashboard
+      if (loc == AppRoutes.pair && setupDone == true) {
+        return AppRoutes.home;
+      }
+
+      // If on home and not set up (sign-out) → back to pairing
+      if (loc == AppRoutes.home && setupDone != true) {
         return AppRoutes.pair;
       }
 
@@ -45,15 +50,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: AppRoutes.splash, builder: (_, __) => const SplashScreen()),
-      GoRoute(path: AppRoutes.login,  builder: (_, __) => const LoginScreen()),
       GoRoute(path: AppRoutes.pair,   builder: (_, __) => const PairingScreen()),
       GoRoute(path: AppRoutes.home,   builder: (_, __) => const WabotShell()),
     ],
   );
 });
 
-/// Listens to both auth state changes AND the one-shot loaded signal,
-/// so GoRouter always re-evaluates the redirect after init completes.
+/// Listens to auth state changes + one-shot loaded signal
+/// so GoRouter re-evaluates after async init completes.
 class _AuthListenable extends ChangeNotifier {
   _AuthListenable(Ref ref, AuthNotifier authNotifier) {
     ref.listen(authProvider, (_, __) => notifyListeners());
