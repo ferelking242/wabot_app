@@ -1,11 +1,11 @@
 {
-    "name": "Scolaris",
-    "short_name": "Scolaris",
+    "name": "Wabot",
+    "short_name": "Wabot",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#8B1A00",
-    "theme_color": "#8B1A00",
-    "description": "Scolaris – Savoir, Héritage, Avenir.",
+    "background_color": "#0A0C0F",
+    "theme_color": "#25D366",
+    "description": "Wabot – WhatsApp Bot Dashboard by Aivos.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
