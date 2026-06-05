@@ -4,8 +4,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AuthNotifier extends StateNotifier<String?> {
   AuthNotifier() : super(null) { _load(); }
 
+  bool loaded = false;
+
   Future<void> _load() async {
-    state = (await SharedPreferences.getInstance()).getString('wabot_api_key');
+    state  = (await SharedPreferences.getInstance()).getString('wabot_api_key');
+    loaded = true;
+    // Trigger router refresh by updating state (even if unchanged)
+    state  = state;
   }
 
   Future<void> signIn(String apiKey) async {
