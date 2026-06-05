@@ -34,7 +34,19 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Decode keystore
+        if: ${{ env.WABOT_KEYSTORE_B64 != '' }}
+        env:
+          WABOT_KEYSTORE_B64: ${{ secrets.WABOT_KEYSTORE_B64 }}
+        run: |
+          echo "$WABOT_KEYSTORE_B64" | base64 -d > /tmp/wabot-release.p12
+          echo "WABOT_KEYSTORE_PATH=/tmp/wabot-release.p12" >> $GITHUB_ENV
+
       - name: Build APK arm64-v8a
+        env:
+          WABOT_STORE_PASSWORD: ${{ secrets.WABOT_STORE_PASSWORD }}
+          WABOT_KEY_ALIAS: ${{ secrets.WABOT_KEY_ALIAS }}
+          WABOT_KEY_PASSWORD: ${{ secrets.WABOT_KEY_PASSWORD }}
         run: flutter build apk --release --target-platform android-arm64 --split-per-abi
 
       - name: Upload APK
