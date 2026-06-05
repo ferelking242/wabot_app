@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -6,11 +7,16 @@ class AuthNotifier extends StateNotifier<String?> {
 
   bool loaded = false;
 
+  // A listenable that fires once loading completes — GoRouter uses this.
+  final loadedNotifier = ChangeNotifier();
+
   Future<void> _load() async {
-    state  = (await SharedPreferences.getInstance()).getString('wabot_api_key');
+    final prefs = await SharedPreferences.getInstance();
+    final key   = prefs.getString('wabot_api_key');
     loaded = true;
-    // Trigger router refresh by updating state (even if unchanged)
-    state  = state;
+    state  = key;
+    // Notify GoRouter even if state didn't change (null → null case).
+    loadedNotifier.notifyListeners();
   }
 
   Future<void> signIn(String apiKey) async {
