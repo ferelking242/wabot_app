@@ -208,7 +208,7 @@ class _SidebarState extends State<_Sidebar> {
                       width: 38, height: 38,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [_terra, Color(0xFFD4540A)],
+                          colors: [_orange, _terra],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -216,9 +216,8 @@ class _SidebarState extends State<_Sidebar> {
                         boxShadow: [BoxShadow(color: _terra.withOpacity(.4),
                             blurRadius: 8, offset: const Offset(0, 3))],
                       ),
-                      child: const Center(child: Text('S',
-                          style: TextStyle(color: _white,
-                              fontWeight: FontWeight.w900, fontSize: 18))),
+                      child: const Center(child: Icon(Icons.chat_rounded,
+                          color: _white, size: 20)),
                     ),
                   )
                 : Row(
@@ -231,7 +230,7 @@ class _SidebarState extends State<_Sidebar> {
                           width: 36, height: 36,
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [_terra, Color(0xFFD4540A)],
+                              colors: [_orange, _terra],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -239,9 +238,8 @@ class _SidebarState extends State<_Sidebar> {
                             boxShadow: [BoxShadow(color: _terra.withOpacity(.35),
                                 blurRadius: 8, offset: const Offset(0, 3))],
                           ),
-                          child: const Center(child: Text('S',
-                              style: TextStyle(color: _white,
-                                  fontWeight: FontWeight.w900, fontSize: 17))),
+                          child: const Center(child: Icon(Icons.chat_rounded,
+                              color: _white, size: 19)),
                         ),
                       ),
                       const SizedBox(width: 10),
