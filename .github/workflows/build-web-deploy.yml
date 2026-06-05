@@ -34,7 +34,7 @@ jobs:
         run: flutter pub get
 
       - name: Build web
-        run: flutter build web --release --base-href "/WABOT/"
+        run: flutter build web --release --base-href "/wabot_app/"
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
