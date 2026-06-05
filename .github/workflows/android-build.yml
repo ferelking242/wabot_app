@@ -9,9 +9,9 @@ on:
 
 jobs:
   build:
-    name: Build Android APK
+    name: Build Android APK (arm64)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repository
@@ -60,37 +60,43 @@ jobs:
           path: |
             android/app/src/main/jniLibs
             android/app/src/main/cpp/node_include
-          key: nodejs-mobile-18.20.4-v2
+          key: nodejs-mobile-18.20.4-arm64-v3
 
-      - name: Download Node.js Mobile binaries and headers
+      - name: Download Node.js Mobile binaries and headers (arm64 only)
         if: steps.cache-nodejs-mobile.outputs.cache-hit != 'true'
         run: |
           NODE_VERSION="18.20.4"
           ZIP_URL="https://github.com/nodejs-mobile/nodejs-mobile/releases/download/v${NODE_VERSION}/nodejs-mobile-v${NODE_VERSION}-android.zip"
           echo "Downloading Node.js Mobile v${NODE_VERSION}..."
           curl -L -o /tmp/nodejs-mobile.zip "$ZIP_URL"
-          echo "Extracting..."
+          echo "Extracting arm64-v8a only..."
           mkdir -p android/app/src/main/jniLibs/arm64-v8a
-          mkdir -p android/app/src/main/jniLibs/armeabi-v7a
-          mkdir -p android/app/src/main/jniLibs/x86_64
           mkdir -p android/app/src/main/cpp/node_include/node
           unzip -p /tmp/nodejs-mobile.zip "bin/arm64-v8a/libnode.so" \
             > android/app/src/main/jniLibs/arm64-v8a/libnode.so
-          unzip -p /tmp/nodejs-mobile.zip "bin/armeabi-v7a/libnode.so" \
-            > android/app/src/main/jniLibs/armeabi-v7a/libnode.so
-          unzip -p /tmp/nodejs-mobile.zip "bin/x86_64/libnode.so" \
-            > android/app/src/main/jniLibs/x86_64/libnode.so
           unzip /tmp/nodejs-mobile.zip "include/node/*" -d /tmp/nodejs-mobile-headers/
           cp -r /tmp/nodejs-mobile-headers/include/node/* \
             android/app/src/main/cpp/node_include/node/
-          echo "Node.js Mobile ready."
+          echo "Node.js Mobile arm64 ready."
           ls -lh android/app/src/main/jniLibs/arm64-v8a/
-          ls android/app/src/main/cpp/node_include/node/ | head -10
+
+      - name: Bundle libc++_shared.so from NDK (required by libnode.so)
+        run: |
+          NDK_PATH="$ANDROID_SDK_ROOT/ndk/27.0.12077973"
+          LIBCPP="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
+          if [ -f "$LIBCPP" ]; then
+            cp "$LIBCPP" android/app/src/main/jniLibs/arm64-v8a/libc++_shared.so
+            echo "libc++_shared.so copied: $(ls -lh android/app/src/main/jniLibs/arm64-v8a/libc++_shared.so)"
+          else
+            echo "ERROR: libc++_shared.so not found at $LIBCPP"
+            find "$NDK_PATH/toolchains/llvm/prebuilt" -name "libc++_shared.so" | head -5
+            exit 1
+          fi
 
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Create debug keystore (fallback when no release keystore)
+      - name: Create debug keystore
         run: |
           mkdir -p ~/.android
           if [ ! -f ~/.android/debug.keystore ]; then
@@ -112,15 +118,15 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Build release APK (split per ABI)
-        run: flutter build apk --release --split-per-abi
+      - name: Build release APK (arm64 only)
+        run: flutter build apk --release --target-platform android-arm64
 
-      - name: Upload APK artifacts
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wabot-android-apk-${{ github.sha }}
-          path: build/app/outputs/flutter-apk/*.apk
+          name: wabot-arm64-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
           retention-days: 30
 
-      - name: Print APK sizes
+      - name: Print APK size
         run: ls -lh build/app/outputs/flutter-apk/*.apk || true
