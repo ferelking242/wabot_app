@@ -1,0 +1,17 @@
+{
+  "name": "wabot-android",
+  "version": "1.0.0",
+  "description": "Wabot embedded Android server — bundled with esbuild for nodejs-mobile",
+  "main": "main.js",
+  "scripts": {
+    "build": "esbuild main.js --bundle --platform=node --format=cjs --outfile=bundle.js --external:bufferutil --external:utf-8-validate --external:canvas --log-level=warning"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc.4",
+    "express": "^4.19.2",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
