@@ -1,8 +1,15 @@
-name: Build & Deploy Wabot Web
+name: 🌐 Deploy Web
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'web/**'
+      - 'assets/**'
+      - '.github/workflows/build-web-deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -12,6 +19,7 @@ permissions:
 
 jobs:
   build-and-deploy:
+    name: Build & Deploy Flutter Web
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
