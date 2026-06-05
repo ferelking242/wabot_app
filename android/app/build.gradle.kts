@@ -24,12 +24,12 @@ tasks.register("downloadNodeJsMobile") {
         val zipFile = File(buildDir, "nodejs-mobile-android.zip")
         zipFile.parentFile.mkdirs()
         if (!zipFile.exists()) {
-            java.net.URL(nodeJsMobileUrl).openStream().use { src ->
-                zipFile.outputStream().use { dst -> src.copyTo(dst) }
+            java.net.URL(nodeJsMobileUrl).openStream().use { src: java.io.InputStream ->
+                zipFile.outputStream().use { dst: java.io.OutputStream -> src.copyTo(dst) }
             }
         }
         println("Extracting binaries and headers…")
-        java.util.zip.ZipInputStream(zipFile.inputStream()).use { zis ->
+        java.util.zip.ZipInputStream(zipFile.inputStream()).use { zis: java.util.zip.ZipInputStream ->
             var entry = zis.nextEntry
             while (entry != null) {
                 val dest: File? = when {
