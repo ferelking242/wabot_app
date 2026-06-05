@@ -6,9 +6,11 @@ import 'core/config/app_config.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
+import 'services/storage_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await StorageService.init();
   runApp(const ProviderScope(child: WabotApp()));
 }
 
