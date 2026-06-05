@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../presentation/providers/auth_providers.dart';
 import '../../../services/storage_service.dart';
 import '../../../theme/app_colors.dart';
 
@@ -14,8 +15,10 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  final _apiController = TextEditingController(text: AppConstants.defaultApiUrl);
-  bool _loading = false;
+  final _urlController  = TextEditingController(text: AppConstants.defaultApiUrl);
+  final _keyController  = TextEditingController();
+  bool _loading         = false;
+  bool _showKey         = false;
 
   @override
   Widget build(BuildContext context) {
@@ -45,30 +48,52 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                 const SizedBox(height: 28),
 
-                Text('Welcome to Wabot', style: theme.textTheme.displaySmall?.copyWith(letterSpacing: -1))
+                Text('Bienvenue sur Wabot',
+                    style: theme.textTheme.displaySmall?.copyWith(letterSpacing: -1))
                     .animate(delay: 100.ms).fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0),
 
                 const SizedBox(height: 8),
 
                 Text(
-                  'Your premium WhatsApp bot dashboard. Connect to your bot instance to get started.',
+                  'Connectez-vous à votre instance wabot pour gérer votre bot WhatsApp.',
                   style: theme.textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary, height: 1.6),
                 ).animate(delay: 200.ms).fadeIn(duration: 400.ms),
 
                 const SizedBox(height: 40),
 
-                Text('Bot API URL', style: theme.textTheme.labelLarge).animate(delay: 300.ms).fadeIn(),
-
+                // URL field
+                Text('URL du serveur wabot', style: theme.textTheme.labelLarge)
+                    .animate(delay: 300.ms).fadeIn(),
                 const SizedBox(height: 8),
-
                 TextField(
-                  controller: _apiController,
+                  controller: _urlController,
                   decoration: const InputDecoration(
                     hintText: 'http://localhost:3001',
                     prefixIcon: Icon(Icons.link, size: 18),
                   ),
                   style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
-                ).animate(delay: 350.ms).fadeIn(duration: 400.ms),
+                  keyboardType: TextInputType.url,
+                ).animate(delay: 340.ms).fadeIn(duration: 400.ms),
+
+                const SizedBox(height: 20),
+
+                // API Key field
+                Text('Clé API (X-API-Key)', style: theme.textTheme.labelLarge)
+                    .animate(delay: 380.ms).fadeIn(),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _keyController,
+                  obscureText: !_showKey,
+                  decoration: InputDecoration(
+                    hintText: 'wbk_••••••••••••••••',
+                    prefixIcon: const Icon(Icons.vpn_key_outlined, size: 18),
+                    suffixIcon: IconButton(
+                      icon: Icon(_showKey ? Icons.visibility_off : Icons.visibility, size: 18),
+                      onPressed: () => setState(() => _showKey = !_showKey),
+                    ),
+                  ),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+                ).animate(delay: 400.ms).fadeIn(duration: 400.ms),
 
                 const SizedBox(height: 12),
 
@@ -86,13 +111,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'You can change this later in Settings. Leave the default if running locally.',
+                          'La clé API apparaît dans les logs de wabot au démarrage. '
+                          'Format : wbk_xxxxxxxxxxxxxxxx',
                           style: theme.textTheme.bodySmall?.copyWith(color: AppColors.accent),
                         ),
                       ),
                     ],
                   ),
-                ).animate(delay: 400.ms).fadeIn(duration: 400.ms),
+                ).animate(delay: 430.ms).fadeIn(duration: 400.ms),
 
                 const SizedBox(height: 32),
 
@@ -102,7 +128,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     onPressed: _loading ? null : _continue,
                     child: _loading
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                        : const Text('Get Started'),
+                        : const Text('Continuer'),
                   ),
                 ).animate(delay: 500.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
               ],
@@ -115,14 +141,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<void> _continue() async {
     setState(() => _loading = true);
-    await StorageService.setString(AppConstants.keyApiUrl, _apiController.text.trim());
+    final url = _urlController.text.trim().replaceAll(RegExp(r'/$'), '');
+    final key = _keyController.text.trim();
+    await StorageService.setString(AppConstants.keyApiUrl, url);
+    if (key.isNotEmpty) {
+      // signIn saves to SharedPreferences AND updates authProvider state →
+      // triggers GoRouter refresh → redirects to /pair automatically
+      await ref.read(authProvider.notifier).signIn(key);
+    }
     await StorageService.setBool(AppConstants.keyOnboardingDone, true);
-    if (mounted) context.go(AppConstants.routeDashboard);
+    if (mounted) context.go('/');
   }
 
   @override
   void dispose() {
-    _apiController.dispose();
+    _urlController.dispose();
+    _keyController.dispose();
     super.dispose();
   }
 }
