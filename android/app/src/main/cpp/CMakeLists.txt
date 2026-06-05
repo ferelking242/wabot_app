@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.22.1)
 project("wabot_bot_engine")
 
-# Node.js Mobile headers — extracted by Gradle download task
-set(NODE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/node_include")
+# Node.js Mobile headers — downloaded by CI into node_include/node/
+set(NODE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/node_include/node")
 
 add_library(nodejs-mobile-native-lib SHARED
     native-lib.cpp
