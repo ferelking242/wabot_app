@@ -41,6 +41,7 @@ dependencies:
 
   # HTTP
   http: ^1.2.0
+  dio: ^5.7.0
 
   # WebSocket
   web_socket_channel: ^2.4.5
