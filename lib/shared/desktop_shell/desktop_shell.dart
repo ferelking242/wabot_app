@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/theme/theme_controller.dart';
-import '../../presentation/providers/auth_providers.dart';
 import '../pages/notifications_page.dart';
 import '../pages/settings_page.dart';
 
@@ -368,8 +367,6 @@ class _HeaderState extends ConsumerState<_Header> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authProvider);
-
     return Container(
       height: 56,
       decoration: BoxDecoration(
@@ -563,7 +560,7 @@ class _HeaderState extends ConsumerState<_Header> {
             content: Material(
               type: MaterialType.transparency,
               child: _AccountPanel(
-              user: user,
+              user: null,
               onSettings: () => Navigator.push(
                 context,
                 MaterialPageRoute(
