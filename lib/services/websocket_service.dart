@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../core/constants/app_constants.dart';
-import 'storage_service.dart';
+import '../core/services/platform_service.dart';
 
 enum WsState { disconnected, connecting, connected, error }
 
@@ -34,7 +34,7 @@ class WebSocketService extends Notifier<WsState> {
   WsState build() => WsState.disconnected;
 
   void connect({String? url}) {
-    _wsUrl = url ?? StorageService.getString(AppConstants.keyApiUrl)?.replaceFirst('http', 'ws') ?? AppConstants.defaultWsUrl;
+    _wsUrl = url ?? PlatformService.botWsUrl;
     _connect();
   }
 
