@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../presentation/providers/auth_providers.dart';
 import '../../../core/config/app_config.dart';
+import 'splash_screen.dart' show WabotLogoWidget;
 
 const _g  = Color(0xFF25D366);
 const _gd = Color(0xFF128C7E);
@@ -35,20 +36,12 @@ class _LoginState extends ConsumerState<LoginScreen> {
         child: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(24),
           child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420),
             child: Form(key: _form, child: Column(mainAxisSize: MainAxisSize.min, children: [
-              // Logo
-              Container(width: 76, height: 76,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [_gd, _g], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: [BoxShadow(color: _g.withOpacity(.38), blurRadius: 30, spreadRadius: 2)],
-                ),
-                child: const Icon(Icons.chat_rounded, size: 36, color: Colors.white)),
+              const WabotLogoWidget(size: 76, radius: 22, iconSize: 36),
               const SizedBox(height: 18),
               const Text(AppConfig.appName, style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1)),
               const SizedBox(height: 4),
               Text('by ${AppConfig.company}', style: TextStyle(color: Colors.white.withOpacity(.3), fontSize: 12, letterSpacing: .8)),
               const SizedBox(height: 30),
-              // Card
               Container(padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: const Color(0xFF111316),
