@@ -1,6 +1,18 @@
 'use strict';
 process.env.NODE_ENV = 'production';
 
+// nodejs-mobile is compiled without ICU — TextDecoder doesn't support `fatal: true`.
+// Patch it before any import (baileys / whatsapp-rust-bridge) can trigger the crash.
+;(function patchTextDecoderForNoICU() {
+  if (typeof TextDecoder === 'undefined') return;
+  const _Native = TextDecoder;
+  global.TextDecoder = class TextDecoder extends _Native {
+    constructor(label, options) {
+      super(label, options ? { ...options, fatal: false } : options);
+    }
+  };
+})();
+
 const { makeWASocket, DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } =
   require('@whiskeysockets/baileys');
 const express = require('express');
