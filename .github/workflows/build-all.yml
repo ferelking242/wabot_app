@@ -20,7 +20,7 @@ jobs:
   android:
     name: Android APK (arm64)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -32,6 +32,39 @@ jobs:
           flutter-version: '3.29.3'
           channel: stable
           cache: true
+
+      - name: Cache Node.js Mobile binaries
+        id: cache-nodejs-mobile
+        uses: actions/cache@v4
+        with:
+          path: |
+            android/app/src/main/jniLibs
+            android/app/src/main/cpp/node_include
+          key: nodejs-mobile-18.20.4-v2
+
+      - name: Download Node.js Mobile binaries and headers
+        if: steps.cache-nodejs-mobile.outputs.cache-hit != 'true'
+        run: |
+          NODE_VERSION="18.20.4"
+          ZIP_URL="https://github.com/nodejs-mobile/nodejs-mobile/releases/download/v${NODE_VERSION}/nodejs-mobile-v${NODE_VERSION}-android.zip"
+          echo "Downloading Node.js Mobile v${NODE_VERSION}..."
+          curl -L -o /tmp/nodejs-mobile.zip "$ZIP_URL"
+          mkdir -p android/app/src/main/jniLibs/arm64-v8a
+          mkdir -p android/app/src/main/jniLibs/armeabi-v7a
+          mkdir -p android/app/src/main/jniLibs/x86_64
+          mkdir -p android/app/src/main/cpp/node_include/node
+          unzip -p /tmp/nodejs-mobile.zip "bin/arm64-v8a/libnode.so" \
+            > android/app/src/main/jniLibs/arm64-v8a/libnode.so
+          unzip -p /tmp/nodejs-mobile.zip "bin/armeabi-v7a/libnode.so" \
+            > android/app/src/main/jniLibs/armeabi-v7a/libnode.so
+          unzip -p /tmp/nodejs-mobile.zip "bin/x86_64/libnode.so" \
+            > android/app/src/main/jniLibs/x86_64/libnode.so
+          unzip /tmp/nodejs-mobile.zip "include/node/*" -d /tmp/nodejs-mobile-headers/
+          cp -r /tmp/nodejs-mobile-headers/include/node/* \
+            android/app/src/main/cpp/node_include/node/
+          echo "Done. Headers:"
+          ls android/app/src/main/cpp/node_include/node/ | head -5
+
       - run: flutter pub get
       - name: Decode keystore
         if: ${{ env.WABOT_KEYSTORE_B64 != '' }}
