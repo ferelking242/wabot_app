@@ -18,13 +18,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.splash,
     refreshListenable: _AuthListenable(ref),
     redirect: (ctx, state) {
-      final key = ref.read(authProvider);
-      final loc = state.matchedLocation;
-      if (key == null) {
-        if (loc == AppRoutes.login || loc == AppRoutes.splash) return null;
-        return AppRoutes.login;
+      final notifier = ref.read(authProvider.notifier);
+      final key      = ref.read(authProvider);
+      final loc      = state.matchedLocation;
+
+      // Still loading from SharedPreferences — stay on splash
+      if (!notifier.loaded) {
+        return loc == AppRoutes.splash ? null : AppRoutes.splash;
       }
-      if (loc == AppRoutes.login || loc == AppRoutes.splash) return AppRoutes.home;
+
+      // Not logged in → always go to login
+      if (key == null) {
+        return loc == AppRoutes.login ? null : AppRoutes.login;
+      }
+
+      // Logged in → skip splash/login
+      if (loc == AppRoutes.login || loc == AppRoutes.splash) {
+        return AppRoutes.home;
+      }
       return null;
     },
     routes: [
