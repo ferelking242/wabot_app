@@ -14,15 +14,6 @@ class WabotPalette {
   static const Color muted    = Color(0xFF8A9199);
 }
 
-/// Garde l'ancien alias pour les widgets qui l'utilisent encore
-class ScolarisPalette {
-  ScolarisPalette._();
-  static const Color terracotta  = WabotPalette.green;
-  static const Color orange      = WabotPalette.greenDk;
-  static const Color gold        = WabotPalette.greenLt;
-  static const Color forestGreen = WabotPalette.green;
-  static const Color cream       = Color(0xFF0D0E11);
-}
 
 class AppTheme {
   AppTheme._();
