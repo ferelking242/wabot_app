@@ -1,212 +1,54 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import '../../../shared/widgets/app_shell.dart';
-import '../../../theme/app_colors.dart';
+import '../../../shared/widgets/page_scaffold.dart';
 
-class AutomationScreen extends StatelessWidget {
+const _g = Color(0xFF25D366); const _ink = Color(0xFFF2F3F5);
+const _muted = Color(0xFF8A9199); const _border = Color(0xFF1E2128); const _card = Color(0xFF111316);
+
+class AutomationScreen extends StatefulWidget {
   const AutomationScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Column(
-        children: [
-          PageHeader(
-            title: 'Automation',
-            subtitle: 'Create automated workflows for your bot',
-            actions: [
-              ElevatedButton.icon(
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('New Flow'),
-                onPressed: () => _showNewFlowDialog(context),
-              ),
-            ],
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Active Flows', style: theme.textTheme.titleMedium).animate().fadeIn(),
-                  const SizedBox(height: 12),
-                  ..._sampleFlows.asMap().entries.map((e) => _FlowCard(flow: e.value, index: e.key)),
-                  const SizedBox(height: 24),
-                  Text('Templates', style: theme.textTheme.titleMedium).animate(delay: 200.ms).fadeIn(),
-                  const SizedBox(height: 12),
-                  ..._templates.asMap().entries.map((e) => _TemplateCard(template: e.value, index: e.key)),
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showNewFlowDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Create New Flow'),
-        content: const Text('Visual flow editor coming soon. Configure triggers, conditions, and actions to automate your bot.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Create')),
-        ],
-      ),
-    );
-  }
-
-  static final _sampleFlows = [
-    _Flow('Welcome New Members', 'Trigger: Join Group → Send welcome message', true, Icons.waving_hand_outlined),
-    _Flow('Auto Reply Keywords', 'Trigger: Message contains keyword → Reply with custom text', true, Icons.reply_outlined),
-    _Flow('Spam Filter', 'Trigger: Link detected → Warn and kick if admin', false, Icons.shield_outlined),
+  @override State<AutomationScreen> createState() => _AS();
+}
+class _AS extends State<AutomationScreen> {
+  final _rules = [
+    _Rule('Bonjour automatique', 'Premier message',   'Envoyer un message',  true),
+    _Rule('Hors bureau',         'Message la nuit',   'Répondre hors-bureau', true),
+    _Rule('FAQ produit',         'Mot-clé: prix',     'Envoyer la grille',   false),
+    _Rule('Accusé de réception', 'Tout message',      'Envoyer un lu ✓',     false),
   ];
-
-  static final _templates = [
-    _Template('Scheduled Broadcast', 'Send scheduled messages to groups', Icons.schedule_outlined),
-    _Template('Anti-Profanity', 'Automatically delete messages with bad words', Icons.block_outlined),
-    _Template('Poll Creator', 'Create polls based on command trigger', Icons.poll_outlined),
-    _Template('Birthday Wisher', 'Send birthday messages to members', Icons.cake_outlined),
-  ];
-}
-
-class _Flow {
-  final String name, description;
-  final bool active;
-  final IconData icon;
-  const _Flow(this.name, this.description, this.active, this.icon);
-}
-
-class _Template {
-  final String name, description;
-  final IconData icon;
-  const _Template(this.name, this.description, this.icon);
-}
-
-class _FlowCard extends StatefulWidget {
-  final _Flow flow;
-  final int index;
-  const _FlowCard({required this.flow, required this.index});
-
   @override
-  State<_FlowCard> createState() => _FlowCardState();
+  Widget build(BuildContext context) => PageScaffold(
+    title: 'Automations',
+    subtitle: '${_rules.where((r) => r.active).length} règles actives',
+    actions: [ActionButton(label: 'Nouvelle règle', icon: Icons.add_rounded, primary: true, onTap: () {})],
+    child: Column(children: [
+      for (final r in _rules) ...[
+        _RuleCard(rule: r, onToggle: (v) => setState(() => r.active = v)),
+        const SizedBox(height: 10),
+      ],
+    ]),
+  );
 }
 
-class _FlowCardState extends State<_FlowCard> {
-  late bool _active;
+class _Rule { final String name, trigger, action; bool active; _Rule(this.name, this.trigger, this.action, this.active); }
 
+class _RuleCard extends StatelessWidget {
+  final _Rule rule; final ValueChanged<bool> onToggle;
+  const _RuleCard({required this.rule, required this.onToggle});
   @override
-  void initState() {
-    super.initState();
-    _active = widget.flow.active;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _active ? AppColors.accentBorder : AppColors.surfaceBorder),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: _active ? AppColors.accentSurface : AppColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(widget.flow.icon, size: 18, color: _active ? AppColors.accent : AppColors.textSecondary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.flow.name, style: theme.textTheme.titleSmall),
-                const SizedBox(height: 2),
-                Text(widget.flow.description, style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Switch(
-            value: _active,
-            onChanged: (v) => setState(() => _active = v),
-          ),
-          IconButton(
-            icon: const Icon(Icons.more_vert, size: 18),
-            color: AppColors.textSecondary,
-            onPressed: () {},
-          ),
-        ],
-      ),
-    )
-        .animate(delay: Duration(milliseconds: 60 * widget.index))
-        .fadeIn(duration: 300.ms)
-        .slideX(begin: 0.03, end: 0, duration: 300.ms);
-  }
-}
-
-class _TemplateCard extends StatefulWidget {
-  final _Template template;
-  final int index;
-  const _TemplateCard({required this.template, required this.index});
-
-  @override
-  State<_TemplateCard> createState() => _TemplateCardState();
-}
-
-class _TemplateCardState extends State<_TemplateCard> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: 150.ms,
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: _hovered ? AppColors.surfaceHover : AppColors.surfaceElevated,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.surfaceBorder),
-        ),
-        child: Row(
-          children: [
-            Icon(widget.template.icon, size: 18, color: AppColors.textSecondary),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(widget.template.name, style: theme.textTheme.titleSmall),
-                  Text(widget.template.description, style: theme.textTheme.bodySmall),
-                ],
-              ),
-            ),
-            TextButton(onPressed: () {}, child: const Text('Use Template')),
-          ],
-        ),
-      ),
-    )
-        .animate(delay: Duration(milliseconds: 60 * widget.index + 200))
-        .fadeIn(duration: 300.ms);
-  }
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(14), border: Border.all(color: _border)),
+    child: Row(children: [
+      Container(width: 42, height: 42,
+        decoration: BoxDecoration(color: rule.active ? _g.withOpacity(.15) : Colors.white10, borderRadius: BorderRadius.circular(11)),
+        child: Icon(Icons.auto_fix_high_outlined, size: 20, color: rule.active ? _g : _muted)),
+      const SizedBox(width: 14),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(rule.name, style: const TextStyle(fontSize: 13.5, color: _ink, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 3),
+        Text('${rule.trigger} → ${rule.action}', style: const TextStyle(fontSize: 11.5, color: _muted)),
+      ])),
+      Switch(value: rule.active, onChanged: onToggle, activeColor: _g),
+    ]),
+  );
 }

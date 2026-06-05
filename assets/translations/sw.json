@@ -1,0 +1,90 @@
+{
+  "app": {
+    "name": "Scolaris",
+    "tagline": "Usimamizi wa shule wenye akili"
+  },
+  "sections": {
+    "setup": "MIPANGILIO",
+    "activity": "SHUGHULI",
+    "account": "AKAUNTI",
+    "finance": "ADA",
+    "tools": "ZANA"
+  },
+  "common": {
+    "ok": "Sawa",
+    "cancel": "Ghairi",
+    "save": "Hifadhi",
+    "delete": "Futa",
+    "edit": "Hariri",
+    "search": "Tafuta",
+    "loading": "Inapakia...",
+    "retry": "Jaribu tena",
+    "logout": "Toka",
+    "settings": "Mipangilio",
+    "language": "Lugha",
+    "theme": "Mandhari",
+    "light": "Mwanga",
+    "dark": "Giza",
+    "system": "Mfumo"
+  },
+  "auth": {
+    "login": "Ingia",
+    "register": "Fungua akaunti",
+    "email": "Barua pepe",
+    "password": "Nenosiri",
+    "forgot": "Umesahau nenosiri?",
+    "loginWithQr": "Ingia kwa QR",
+    "welcome": "Karibu tena",
+    "subWelcome": "Ingia kufikia shule yako",
+    "errors": {
+      "invalidEmail": "Barua pepe si sahihi",
+      "shortPassword": "Nenosiri ni fupi sana",
+      "failed": "Imeshindwa kuingia"
+    }
+  },
+  "roles": {
+    "student": "Mwanafunzi",
+    "parent": "Mzazi",
+    "teacher": "Mwalimu",
+    "surveillance": "Usimamizi",
+    "finance": "Fedha",
+    "admin": "Msimamizi"
+  },
+  "nav": {
+    "dashboard": "Dashibodi",
+    "courses": "Masomo",
+    "grades": "Alama",
+    "attendance": "Mahudhurio",
+    "schedule": "Ratiba",
+    "messages": "Ujumbe",
+    "children": "Watoto",
+    "payments": "Malipo",
+    "students": "Wanafunzi",
+    "classes": "Madarasa",
+    "reports": "Ripoti",
+    "users": "Watumiaji",
+    "billing": "Bili",
+    "library": "Maktaba",
+    "qr": "QR",
+    "bulletin": "Ripoti ya Mwanafunzi",
+    "homework": "Kazi za Nyumbani",
+    "features": "Vipengele",
+    "class_stats": "Takwimu",
+    "timetable": "Ratiba ya Masomo",
+    "enrollment": "Usajili",
+    "notifications": "Arifa",
+    "receipts": "Risiti",
+    "my_payments": "Ada Zangu",
+    "documents": "Nyaraka Zangu"
+  },
+  "dashboard": {
+    "hello": "Habari, {name}",
+    "today": "Leo",
+    "upcoming": "Inakuja",
+    "stats": "Takwimu",
+    "presence": "Kiwango cha mahudhurio",
+    "average": "Wastani",
+    "due": "Malipo yanayodaiwa",
+    "noData": "Hakuna data"
+  }
+}

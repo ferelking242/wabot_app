@@ -1,215 +1,65 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:timeago/timeago.dart' as timeago;
-import '../../../services/api_service.dart';
-import '../../../shared/models/bot_status.dart';
-import '../../../shared/widgets/app_shell.dart';
-import '../../../theme/app_colors.dart';
+import '../../../shared/widgets/page_scaffold.dart';
 
-final chatsProvider = FutureProvider<List<ChatPreview>>((ref) async {
-  final api = ref.read(apiServiceProvider);
-  final data = await api.getChats();
-  return data.map(ChatPreview.fromJson).toList();
-});
+const _g = Color(0xFF25D366); const _gd = Color(0xFF128C7E);
+const _ink = Color(0xFFF2F3F5); const _muted = Color(0xFF8A9199);
+const _border = Color(0xFF1E2128); const _card = Color(0xFF111316);
 
-final chatSearchProvider = StateProvider<String>((ref) => '');
-
-class ChatsScreen extends ConsumerStatefulWidget {
+class ChatsScreen extends StatelessWidget {
   const ChatsScreen({super.key});
-
+  static const _data = [
+    ('+33 6 12 34 56 78', 'Bonjour, comment ça va ?',       '14:32', true),
+    ('+33 7 98 76 54 32', 'Merci pour votre réponse !',      '13:10', false),
+    ('+242 06 001 0001',  'Quand sera disponible...',         '11:45', true),
+    ('+1 555 123 4567',   'Thanks for the quick reply',       '09:20', false),
+    ('+44 20 7946 0958',  'Can you send me the info again?', '08:05', true),
+  ];
   @override
-  ConsumerState<ChatsScreen> createState() => _ChatsScreenState();
+  Widget build(BuildContext context) => PageScaffold(
+    title: 'Conversations',
+    subtitle: '${_data.length} conversations récentes',
+    child: Column(children: [
+      Container(height: 38, padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
+        child: const Row(children: [
+          Icon(Icons.search_rounded, size: 16, color: _muted),
+          SizedBox(width: 8),
+          Expanded(child: TextField(style: TextStyle(fontSize: 13, color: _ink),
+            decoration: InputDecoration(hintText: 'Rechercher…', hintStyle: TextStyle(color: _muted, fontSize: 13),
+              border: InputBorder.none, isCollapsed: true, contentPadding: EdgeInsets.symmetric(vertical: 10)))),
+        ])),
+      const SizedBox(height: 12),
+      for (final c in _data) ...[
+        _Row(phone: c.$1, preview: c.$2, time: c.$3, bot: c.$4),
+        Container(height: 1, color: _border),
+      ],
+    ]),
+  );
 }
 
-class _ChatsScreenState extends ConsumerState<ChatsScreen> {
-  final _searchController = TextEditingController();
-
+class _Row extends StatelessWidget {
+  final String phone, preview, time; final bool bot;
+  const _Row({required this.phone, required this.preview, required this.time, required this.bot});
   @override
-  Widget build(BuildContext context) {
-    final chatsAsync = ref.watch(chatsProvider);
-    final search = ref.watch(chatSearchProvider);
-
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PageHeader(
-            title: 'Chats',
-            subtitle: 'All conversations managed by the bot',
-            actions: [
-              chatsAsync.whenOrNull(
-                data: (c) => Text('${c.length} chats', style: const TextStyle(color: AppColors.textTertiary, fontSize: 13)),
-              ) ?? const SizedBox.shrink(),
-              const SizedBox(width: 12),
-              IconButton(
-                icon: const Icon(Icons.refresh, size: 18),
-                onPressed: () => ref.invalidate(chatsProvider),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 0),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (v) => ref.read(chatSearchProvider.notifier).state = v,
-              decoration: const InputDecoration(
-                hintText: 'Search chats...',
-                prefixIcon: Icon(Icons.search, size: 18),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              ),
-            ),
-          ).animate().fadeIn(delay: 100.ms),
-          const SizedBox(height: 12),
-          Expanded(
-            child: chatsAsync.when(
-              data: (chats) {
-                final filtered = search.isEmpty
-                    ? chats
-                    : chats.where((c) => c.name.toLowerCase().contains(search.toLowerCase())).toList();
-
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  itemCount: filtered.length,
-                  itemBuilder: (_, i) => _ChatTile(chat: filtered[i], index: i),
-                );
-              },
-              loading: () => ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                itemCount: 10,
-                itemBuilder: (_, i) => _ChatTileSkeleton(index: i),
-              ),
-              error: (_, __) => const Center(child: Text('Could not load chats', style: TextStyle(color: AppColors.textTertiary))),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-}
-
-class _ChatTile extends StatefulWidget {
-  final ChatPreview chat;
-  final int index;
-
-  const _ChatTile({required this.chat, required this.index});
-
-  @override
-  State<_ChatTile> createState() => _ChatTileState();
-}
-
-class _ChatTileState extends State<_ChatTile> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final chat = widget.chat;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: 150.ms,
-        margin: const EdgeInsets.only(bottom: 2),
-        decoration: BoxDecoration(
-          color: _hovered ? AppColors.surfaceHover : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          leading: CircleAvatar(
-            radius: 22,
-            backgroundColor: _avatarColor(chat.name),
-            child: Text(
-              chat.name.isNotEmpty ? chat.name[0].toUpperCase() : '?',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
-            ),
-          ),
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  chat.name,
-                  style: theme.textTheme.titleSmall?.copyWith(color: AppColors.textPrimary),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (chat.isGroup) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text('${chat.participants}', style: const TextStyle(color: AppColors.info, fontSize: 10, fontWeight: FontWeight.w600)),
-                ),
-              ],
-            ],
-          ),
-          subtitle: Text(
-            chat.lastMessage,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
-          ),
-          trailing: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                timeago.format(chat.lastMessageTime, locale: 'en_short'),
-                style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
-              ),
-              if (chat.unreadCount > 0) ...[
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(10)),
-                  child: Text('${chat.unreadCount}', style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.w700)),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    )
-        .animate(delay: Duration(milliseconds: 30 * widget.index))
-        .fadeIn(duration: 250.ms)
-        .slideX(begin: 0.05, end: 0, duration: 250.ms);
-  }
-
-  Color _avatarColor(String name) {
-    final colors = [
-      AppColors.accent, AppColors.info, AppColors.idle, AppColors.error, const Color(0xFFEB459E),
-    ];
-    return colors[name.codeUnits.fold(0, (a, b) => a + b) % colors.length];
-  }
-}
-
-class _ChatTileSkeleton extends StatelessWidget {
-  final int index;
-  const _ChatTileSkeleton({required this.index});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 68,
-      margin: const EdgeInsets.only(bottom: 2),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(10),
-      ),
-    ).animate(delay: Duration(milliseconds: 30 * index)).fadeIn(duration: 250.ms)
-     .animate(onPlay: (c) => c.repeat()).shimmer(duration: 1200.ms, color: AppColors.surfaceHover);
-  }
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 12),
+    child: Row(children: [
+      Container(width: 44, height: 44,
+        decoration: BoxDecoration(gradient: const LinearGradient(colors: [_gd, _g]), borderRadius: BorderRadius.circular(12)),
+        child: Center(child: Text(phone.substring(1, 3), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)))),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(phone, style: const TextStyle(fontSize: 13.5, color: _ink, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 2),
+        Text(preview, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: _muted)),
+      ])),
+      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        Text(time, style: const TextStyle(fontSize: 10.5, color: _muted)),
+        if (bot) ...[const SizedBox(height: 4),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(color: _g.withOpacity(.15), borderRadius: BorderRadius.circular(99)),
+            child: const Text('BOT', style: TextStyle(fontSize: 9, color: _g, fontWeight: FontWeight.w800)))],
+      ]),
+    ]),
+  );
 }

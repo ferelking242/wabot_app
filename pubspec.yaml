@@ -1,63 +1,59 @@
 name: wabot_app
-description: Premium Flutter dashboard for managing WhatsApp bots
-publish_to: none
+description: "Wabot — WhatsApp Bot Dashboard by Aivos"
+publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ">=3.2.0 <4.0.0"
-  flutter: ">=3.16.0"
+  sdk: ^3.5.0
 
 dependencies:
   flutter:
     sdk: flutter
+  cupertino_icons: ^1.0.8
 
-  # State management
-  flutter_riverpod: ^2.4.10
-  riverpod_annotation: ^2.3.5
+  # State
+  flutter_riverpod: ^2.5.1
 
-  # Navigation
-  go_router: ^13.2.4
+  # Routing
+  go_router: ^14.2.7
 
-  # Networking
-  dio: ^5.4.1
-  web_socket_channel: ^2.4.4
-  http: ^1.2.1
+  # Theme
+  flex_color_scheme: 8.2.0
 
-  # Storage
-  flutter_secure_storage: ^9.2.2
-  shared_preferences: ^2.2.3
-  path_provider: ^2.1.3
+  # Responsive
+  responsive_framework: ^1.5.1
 
-  # UI / Design
-  responsive_framework: ^1.2.1
-  flex_color_scheme: ^7.3.1
-  flutter_animate: ^4.5.0
+  # Animations
   animations: ^2.0.11
-  shimmer: ^3.0.0
-  google_fonts: ^6.2.1
+  flutter_animate: ^4.5.0
 
   # Charts
-  fl_chart: ^0.67.0
+  fl_chart: ^0.69.0
 
-  # Utils
+  # Desktop popups
+  flutter_popup: ^3.3.9
+
+  # QR Code
   qr_flutter: ^4.1.0
-  cached_network_image: ^3.3.1
-  timeago: ^3.6.1
-  intl: ^0.19.0
-  uuid: ^4.4.0
-  icons_plus: ^5.0.0
+
+  # Storage
+  shared_preferences: ^2.3.3
+
+  # HTTP
+  http: ^1.2.0
+
+  # WebSocket
+  web_socket_channel: ^2.4.5
+
+  # Skeleton
+  skeletonizer: ^2.1.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.2
-  build_runner: ^2.4.9
-  riverpod_generator: ^2.4.0
-  json_annotation: ^4.9.0
-  json_serializable: ^6.8.0
+  flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/icons/

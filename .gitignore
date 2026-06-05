@@ -1,61 +1,62 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.buildlog/
-.history
-.svn/
-migrate_working_dir/
-
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this is
-# excluded by default.
-.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# Flutter / Dart
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
-/build/
+build/
+**/generated_plugin_registrant.dart
+**/GeneratedPluginRegistrant.*
 
-# Symbolication related
-app.*.symbols
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
 
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-# Generated files
-*.g.dart
-*.freezed.dart
-
-# Environment files
-.env
-.env.local
-.env.*.local
+# OS
+.DS_Store
+Thumbs.db
 
 # Coverage
 coverage/
-lcov.info
 
-# Logs
-logs/
-*.log
-npm-debug.log*
+# Android
+android/.gradle/
+android/captures/
+android/local.properties
+android/key.properties
+**/android/**/gradle-wrapper.jar
+.gradle/
+
+# iOS / macOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+macos/Pods/
+macos/.symlinks/
+**/Flutter/ephemeral/
+
+# Windows
+windows/flutter/ephemeral/
+
+# Linux
+linux/flutter/ephemeral/
+
+# Replit / agent
+.replit
+replit.nix
+.config/
+.cache/
+.upm/
+.local/
+.agents/
+.akili_agents/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
