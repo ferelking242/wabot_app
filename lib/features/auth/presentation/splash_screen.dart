@@ -34,13 +34,7 @@ class _S extends State<SplashScreen> with SingleTickerProviderStateMixin {
             decoration: const BoxDecoration(gradient: LinearGradient(colors: [_gd, _g, Color(0xFF34E07E)])))),
           Center(child: AnimatedBuilder(animation: _c, builder: (_, __) =>
             FadeTransition(opacity: _fa, child: ScaleTransition(scale: _sc, child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(width: 96, height: 96,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [_gd, _g], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [BoxShadow(color: _g.withOpacity(.4), blurRadius: 36, spreadRadius: 4)],
-                ),
-                child: const Icon(Icons.chat_rounded, size: 44, color: Colors.white)),
+              _WabotLogo(size: 96, radius: 24, iconSize: 44),
               const SizedBox(height: 24),
               const Text(AppConfig.appName, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 36, letterSpacing: 1.5)),
               const SizedBox(height: 6),
@@ -56,6 +50,66 @@ class _S extends State<SplashScreen> with SingleTickerProviderStateMixin {
               style: TextStyle(color: Colors.white.withOpacity(.2), fontSize: 11)),
           ))),
         ]),
+      ),
+    );
+  }
+}
+
+/// Wabot logo widget — tries image asset first, falls back to painted icon.
+class _WabotLogo extends StatelessWidget {
+  final double size, iconSize, radius;
+  const _WabotLogo({required this.size, required this.iconSize, required this.radius});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [_gd, _g], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: [BoxShadow(color: _g.withOpacity(.4), blurRadius: 36, spreadRadius: 4)],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.asset(
+          'assets/images/logo_transparent.png',
+          width: size, height: size, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Center(
+            child: Icon(Icons.chat_rounded, size: iconSize, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Exposed for use in other widgets (sidebar, login).
+class WabotLogoWidget extends StatelessWidget {
+  final double size;
+  final double? radius;
+  final double? iconSize;
+  const WabotLogoWidget({super.key, this.size = 40, this.radius, this.iconSize});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = radius ?? size * 0.25;
+    final is_ = iconSize ?? size * 0.45;
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [_gd, _g], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(r),
+        boxShadow: [BoxShadow(color: _g.withOpacity(.35), blurRadius: 12, spreadRadius: 1)],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(r),
+        child: Image.asset(
+          'assets/images/logo_transparent.png',
+          width: size, height: size, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Center(
+            child: Icon(Icons.chat_rounded, size: is_, color: Colors.white),
+          ),
+        ),
       ),
     );
   }
