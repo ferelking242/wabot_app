@@ -7,6 +7,7 @@
     "build": "esbuild main.js --bundle --platform=node --format=cjs --outfile=bundle.js --external:bufferutil --external:utf-8-validate --external:canvas --log-level=warning"
   },
   "dependencies": {
+    "@peculiar/webcrypto": "^1.4.5",
     "@whiskeysockets/baileys": "^7.0.0-rc.4",
     "express": "^4.19.2",
     "qrcode": "^1.5.3"
