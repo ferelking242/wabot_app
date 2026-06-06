@@ -178,7 +178,10 @@
       sock.ev.on('messages.upsert', async ({ messages, type }) => {
         if (type !== 'notify') return;
         for (const msg of messages) {
-          if (!msg.message || msg.key.fromMe) continue;
+          if (!msg.message) continue;
+            // Allow fromMe so owner can send commands from their own number
+            // Skip only automated protocol messages
+            if (msg.key.fromMe && msg.message?.protocolMessage) continue;
           const from     = msg.key.remoteJid;
           const isGroup  = from.endsWith('@g.us');
           const senderId = msg.key.participant || from;
