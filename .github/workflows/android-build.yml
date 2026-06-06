@@ -96,73 +96,27 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      # ── Signing keystore — clé fixe, mise en cache indéfiniment ─────────────
-      # La clé de cache est FIXE (pas de hash) → le MÊME keystore est réutilisé
-      # à chaque build. Cela évite l'erreur "package en conflit" sur Android.
-      - name: Restore signing keystore from cache
+      # The signing keystore is cached with a FIXED key (no hash) so every
+      # build reuses the exact same key. This prevents "package conflict"
+      # errors when sideloading updates on Android.
+      - name: Restore debug keystore from cache
         id: cache-keystore
         uses: actions/cache@v4
         with:
-          path: ~/.android/wabot-release.jks
-          key: wabot-signing-keystore-v1
+          path: ~/.android/debug.keystore
+          key: wabot-debug-keystore-v1
 
-      - name: Generate signing keystore (première exécution uniquement)
+      - name: Create debug keystore (first run only)
         if: steps.cache-keystore.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/.android
           keytool -genkey -v \
-            -keystore ~/.android/wabot-release.jks \
-            -alias wabot \
+            -keystore ~/.android/debug.keystore \
+            -alias androiddebugkey \
             -keyalg RSA -keysize 2048 -validity 36500 \
-            -storepass wabot2024 -keypass wabot2024 \
-            -dname "CN=Wabot,O=Wabot,L=Unknown,ST=Unknown,C=US"
-          echo "✅ Keystore généré et mis en cache."
-
-      - name: Write key.properties
-        run: |
-          mkdir -p ~/.android
-          cat > android/key.properties <<EOF
-          storePassword=wabot2024
-          keyPassword=wabot2024
-          keyAlias=wabot
-          storeFile=$HOME/.android/wabot-release.jks
-          EOF
-          echo "✅ key.properties écrit."
-
-      - name: Patch build.gradle for release signing
-        run: |
-          GRADLE="android/app/build.gradle"
-          if ! grep -q "keystoreProperties" "$GRADLE"; then
-            # Insère le bloc de chargement des propriétés en tête du fichier
-            TMP=$(mktemp)
-            cat > "$TMP" <<'GROOVY'
-def keystorePropertiesFile = rootProject.file("key.properties")
-def keystoreProperties = new Properties()
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-}
-
-GROOVY
-            cat "$TMP" "$GRADLE" > "$GRADLE.new" && mv "$GRADLE.new" "$GRADLE"
-
-            # Insère signingConfigs juste avant buildTypes
-            sed -i '/buildTypes {/i\
-    signingConfigs {\
-        release {\
-            keyAlias keystoreProperties["keyAlias"]\
-            keyPassword keystoreProperties["keyPassword"]\
-            storeFile keystoreProperties["storeFile"] ? file(keystoreProperties["storeFile"]) : null\
-            storePassword keystoreProperties["storePassword"]\
-        }\
-    }' "$GRADLE"
-
-            # Ajoute signingConfig dans le bloc release
-            sed -i '/release {/a\            signingConfig signingConfigs.release' "$GRADLE"
-
-            echo "✅ build.gradle patché pour la signature release."
-          else
-            echo "ℹ️  build.gradle déjà patché — aucune modification."
-          fi
+            -storepass android -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US"
+          echo "Keystore created and cached."
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -183,9 +137,5 @@ GROOVY
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
 
-      - name: Print APK size and signing fingerprint
-        run: |
-          ls -lh build/app/outputs/flutter-apk/*.apk || true
-          echo "--- Signing fingerprint ---"
-          keytool -printcert -jarfile build/app/outputs/flutter-apk/app-release.apk 2>/dev/null \
-            | grep -E "SHA256|Owner|Issuer" || true
+      - name: Print APK size
+        run: ls -lh build/app/outputs/flutter-apk/*.apk || true
