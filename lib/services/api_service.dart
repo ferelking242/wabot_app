@@ -45,7 +45,7 @@ class ApiService {
   void updateBaseUrl(String url) => _dio.options.baseUrl = url;
   void updateApiKey(String key) => _dio.options.headers['X-API-Key'] = key;
 
-  // ââ Instance / Connection âââââââââââââââââââââââââââââââââââââââââââââââââ
+  // Ã¢ÂÂÃ¢ÂÂ Instance / Connection Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
   Future<Map<String, dynamic>> getInstanceStatus() async {
     try {
@@ -79,7 +79,7 @@ class ApiService {
     }
   }
 
-  // ââ Dashboard âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // Ã¢ÂÂÃ¢ÂÂ Dashboard Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
   Future<Map<String, dynamic>> getBotStatus() async {
     try {
@@ -179,21 +179,21 @@ class ApiService {
   }
 
   Future<bool> restartBot() async {
-    try {
-      await _dio.post('/api/v1/instance/reconnect');
-      return true;
-    } catch (_) {
-
-  Future<void> resetBot() async {
-    try {
-      await _dio.post('/api/v1/instance/reset');
-    } catch (_) {}
-  }
-      return false;
+      try {
+        await _dio.post('/api/v1/instance/reconnect');
+        return true;
+      } catch (_) {
+        return false;
+      }
     }
-  }
 
-  Future<bool> stopBot() async => false;
+    Future<void> resetBot() async {
+      try {
+        await _dio.post('/api/v1/instance/reset');
+      } catch (_) {}
+    }
+
+    Future<bool> stopBot() async => false;
 
   Future<bool> deleteSession(String sessionId) async {
     try {
@@ -204,7 +204,7 @@ class ApiService {
     }
   }
 
-  // ââ Mock fallbacks (offline / demo mode) âââââââââââââââââââââââââââââââââ
+  // Ã¢ÂÂÃ¢ÂÂ Mock fallbacks (offline / demo mode) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
   Map<String, dynamic> _mockBotStatus() => {
     'status': 'offline',
@@ -255,7 +255,7 @@ class ApiService {
   });
 
   List<Map<String, dynamic>> _mockLogs() => [
-    {'level': 'info', 'message': 'â Bot connected to WhatsApp', 'timestamp': DateTime.now().subtract(const Duration(minutes: 2)).toIso8601String()},
+    {'level': 'info', 'message': 'Ã¢ÂÂ Bot connected to WhatsApp', 'timestamp': DateTime.now().subtract(const Duration(minutes: 2)).toIso8601String()},
     {'level': 'info', 'message': 'Processing message from +242...', 'timestamp': DateTime.now().subtract(const Duration(minutes: 1)).toIso8601String()},
     {'level': 'warn', 'message': 'Rate limit approaching for group XYZ', 'timestamp': DateTime.now().toIso8601String()},
     {'level': 'success', 'message': 'Command .help executed successfully', 'timestamp': DateTime.now().toIso8601String()},
