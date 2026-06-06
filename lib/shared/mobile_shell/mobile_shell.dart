@@ -9,7 +9,6 @@ import '../pages/notifications_page.dart';
 import '../pages/search_page.dart';
 import '../widgets/responsive_role_shell.dart' show RoleNavEntry;
 
-// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Design tokens ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 const _pageBg    = Color(0xFF0D0E11);
 const _white     = Colors.white;
 const _ink       = Color(0xFFF2F3F5);
@@ -17,11 +16,9 @@ const _muted     = Color(0xFF8A9199);
 const _terra     = Color(0xFF25D366);
 const _orange    = Color(0xFF128C7E);
 const _gold      = Color(0xFF34E07E);
-const _menuAcc   = Color(0xFF34E07E);
 
-// African sidebar background ÃÂ¢ÃÂÃÂ dark terracotta/brown, NOT green
 const _menuBg1   = Color(0xFF0A0C0F);
-const _menuBg2   = Color(0xFF111316);
+const _menuBg2   = Color(0xFF0E1711);
 const _menuTxt   = Color(0xFFF2F3F5);
 
 const _kEdgeZone = 28.0;
@@ -77,7 +74,7 @@ class _MobileShellState extends ConsumerState<MobileShell>
     setState(() {
       _scale  = 1 - 0.10 * t;
       _xShift = 0.68 * t;
-      _yShift = 0.05 * t;   // slight downward push so sidebar top icons are visible
+      _yShift = 0.04 * t;
       _radius = 28 * t;
     });
   }
@@ -160,7 +157,7 @@ class _MobileShellState extends ConsumerState<MobileShell>
         body: Stack(
           clipBehavior: Clip.none,
           children: [
-            // 1 ÃÂ¢ÃÂÃÂ Sidebar panel
+            // 1 — Sidebar panel
             Positioned.fill(
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -177,7 +174,7 @@ class _MobileShellState extends ConsumerState<MobileShell>
               ),
             ),
 
-            // 2 ÃÂ¢ÃÂÃÂ Main card with shadow
+            // 2 — Main card with WHITE shadow like WhatsApp
             Transform(
               transform: Matrix4.identity()
                 ..translate(size.width * _xShift, size.height * _yShift)
@@ -186,11 +183,17 @@ class _MobileShellState extends ConsumerState<MobileShell>
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(_radius),
-                  boxShadow: _menuOpen ? [
+                  boxShadow: _menuCtrl.value > 0.01 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.35),
-                      blurRadius: 32,
-                      offset: const Offset(-8, 0),
+                      color: Colors.white.withOpacity(0.18 * _menuCtrl.value),
+                      blurRadius: 48,
+                      spreadRadius: -4,
+                      offset: const Offset(-24, 0),
+                    ),
+                    BoxShadow(
+                      color: _terra.withOpacity(0.10 * _menuCtrl.value),
+                      blurRadius: 24,
+                      offset: const Offset(-10, 0),
                     ),
                   ] : [],
                 ),
@@ -232,7 +235,7 @@ class _MobileShellState extends ConsumerState<MobileShell>
               ),
             ),
 
-            // 3 ÃÂ¢ÃÂÃÂ Edge bubble
+            // 3 — Edge bubble
             if (_showEdgeBubble || (_menuCtrl.value > 0 && _menuCtrl.value < 0.15))
               Positioned(
                 left: 4 + _menuCtrl.value * 12,
@@ -246,7 +249,6 @@ class _MobileShellState extends ConsumerState<MobileShell>
   }
 }
 
-// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Full Page Wrapper ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 class _FullPage extends StatelessWidget {
   final String title;
   final Widget child;
@@ -267,7 +269,7 @@ class _FullPage extends StatelessWidget {
                 child: Container(
                   width: 38, height: 38,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5EEE6),
+                    color: const Color(0xFF1A1D21),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.arrow_back_rounded, color: _ink, size: 20),
@@ -285,7 +287,6 @@ class _FullPage extends StatelessWidget {
   }
 }
 
-// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Smart Header ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 class _SmartHeader extends StatelessWidget {
   final String title;
   final String? user;
@@ -307,14 +308,9 @@ class _SmartHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initials = 'Admin'.isNotEmpty
-        ? "AD"
-        : '?';
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Top bar ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
         Container(
           height: 56,
           color: const Color(0xFF111316),
@@ -343,7 +339,7 @@ class _SmartHeader extends StatelessWidget {
                       decoration: const BoxDecoration(color: _terra, shape: BoxShape.circle))),
               ]),
             ),
-            // Account avatar button
+            // Account avatar — aligned with the X button in drawer
             GestureDetector(
               onTap: onAccount,
               child: Container(
@@ -360,13 +356,12 @@ class _SmartHeader extends StatelessWidget {
                       color: _terra.withOpacity(.3),
                       blurRadius: 6, offset: const Offset(0, 2))],
                 ),
-                child: Center(child: Text(initials,
-                    style: const TextStyle(color: const Color(0xFF111316), fontSize: 11,
-                        fontWeight: FontWeight.w800))),
+                child: const Center(child: Icon(Icons.person_rounded, size: 16, color: Colors.white)),
               ),
             ),
           ]),
-        ),      ],
+        ),
+      ],
     );
   }
 }
@@ -428,7 +423,6 @@ class _EdgeBubble extends StatelessWidget {
   }
 }
 
-// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Sidebar Panel ÃÂ¢ÃÂÃÂ African dark brown theme ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 class _SidebarPanel extends StatefulWidget {
   final List<RoleNavEntry> entries;
   final String? user;
@@ -462,8 +456,7 @@ class _SidebarPanelState extends State<_SidebarPanel> {
   List<_NavGroup> get _groups {
     final entries = widget.entries;
     if (entries.isEmpty) return [];
-    // Group entries into sections of up to 4
-    final main   = entries.take(math.min(4, entries.length)).toList();
+    final main   = entries.take(math.min(5, entries.length)).toList();
     final rest   = entries.skip(main.length).toList();
     return [
       _NavGroup(labelKey: 'nav.main',    entries: main),
@@ -474,11 +467,6 @@ class _SidebarPanelState extends State<_SidebarPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final user = widget.user;
-    final initials = 'Admin'.isNotEmpty
-        ? "AD"
-        : '?';
-
     return SizedBox(
       width: widget.width,
       child: Opacity(
@@ -492,66 +480,65 @@ class _SidebarPanelState extends State<_SidebarPanel> {
             ),
           ),
           child: Stack(children: [
-            // Subtle African pattern background
+            // WhatsApp-style colorful background shapes
             CustomPaint(painter: _SidebarPatternPainter(), child: const SizedBox.expand()),
 
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Top: account icon + X ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
+                // Top: account icon + X — properly aligned in same Row
                 SafeArea(
                   bottom: false,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 16, 12),
-                    child: Row(children: [
-                      // Account circle icon
-                      GestureDetector(
-                        onTap: widget.onAccount,
-                        child: Container(
-                          width: 44, height: 44,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _white.withOpacity(.12),
-                            border: Border.all(color: _gold.withOpacity(.4), width: 1.5),
-                          ),
-                          child: Center(
-                            child: Text(initials,
-                                style: const TextStyle(color: const Color(0xFF111316),
-                                    fontWeight: FontWeight.w800, fontSize: 16)),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Account circle icon
+                        GestureDetector(
+                          onTap: widget.onAccount,
+                          child: Container(
+                            width: 44, height: 44,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                colors: [_terra, _orange],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              boxShadow: [BoxShadow(
+                                color: _terra.withOpacity(.3),
+                                blurRadius: 10, offset: const Offset(0, 4))],
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.person_rounded, color: Colors.white, size: 22),
+                            ),
                           ),
                         ),
-                      ),
-                      const Spacer(),
-                      // X close button
-                      GestureDetector(
-                        onTap: widget.onClose,
-                        child: Container(
-                          width: 36, height: 36,
-                          decoration: BoxDecoration(
-                            color: _white.withOpacity(.10),
-                            shape: BoxShape.circle,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Wabot', style: TextStyle(color: _white, fontSize: 15, fontWeight: FontWeight.w800)),
+                              Text('Administrateur', style: TextStyle(color: _white.withOpacity(.55), fontSize: 11)),
+                            ],
                           ),
-                          child: const Icon(Icons.close_rounded, color: const Color(0xFF111316), size: 18),
                         ),
-                      ),
-                    ]),
-                  ),
-                ),
-
-                // ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Role badge ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _gold.withOpacity(.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _gold.withOpacity(.3)),
-                    ),
-                    child: Text(
-                      'ADMIN',
-                      style: const TextStyle(color: _gold, fontSize: 10,
-                          fontWeight: FontWeight.w800, letterSpacing: 1.2),
+                        // X close button — same height as account circle
+                        GestureDetector(
+                          onTap: widget.onClose,
+                          child: Container(
+                            width: 36, height: 36,
+                            decoration: BoxDecoration(
+                              color: _white.withOpacity(.12),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: _white.withOpacity(.15)),
+                            ),
+                            child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -561,7 +548,7 @@ class _SidebarPanelState extends State<_SidebarPanel> {
                     color: _white.withOpacity(.08)),
                 const SizedBox(height: 8),
 
-                // ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Nav groups ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
+                // Nav groups
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -570,9 +557,9 @@ class _SidebarPanelState extends State<_SidebarPanel> {
                         Padding(
                           padding: const EdgeInsets.fromLTRB(8, 12, 8, 6),
                           child: Text(
-                            group.labelKey == 'nav.main' ? 'NAVIGATION' : 'PLUS',
+                            group.labelKey == 'nav.main' ? 'NAVIGATION' : 'OUTILS',
                             style: TextStyle(
-                                color: _gold.withOpacity(.6),
+                                color: _terra.withOpacity(.7),
                                 fontSize: 9, fontWeight: FontWeight.w800,
                                 letterSpacing: 1.5),
                           ),
@@ -590,7 +577,6 @@ class _SidebarPanelState extends State<_SidebarPanel> {
                           ),
                       ],
 
-                      // ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Logout as last item ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
                       const SizedBox(height: 8),
                       Container(height: 1, color: _white.withOpacity(.06),
                           margin: const EdgeInsets.symmetric(horizontal: 4)),
@@ -600,16 +586,13 @@ class _SidebarPanelState extends State<_SidebarPanel> {
                   ),
                 ),
 
-                // ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ App branding footer ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
+                // App branding footer
                 SafeArea(
                   top: false,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                     child: Row(children: [
-                      Image.asset('assets/images/logo_transparent.png',
-                          width: 22, height: 22,
-                          errorBuilder: (_, __, ___) => const Icon(
-                              Icons.school_rounded, size: 20, color: _gold)),
+                      const Icon(Icons.chat_rounded, size: 16, color: _terra),
                       const SizedBox(width: 8),
                       Text(AppConfig.appName,
                           style: TextStyle(color: _white.withOpacity(.5),
@@ -635,7 +618,6 @@ class _NavGroup {
   const _NavGroup({required this.labelKey, required this.entries});
 }
 
-// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Sidebar Item ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 class _SidebarItem extends StatelessWidget {
   final RoleNavEntry entry;
   final bool selected;
@@ -663,26 +645,26 @@ class _SidebarItem extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
               onTap: onTap,
-              splashColor: _gold.withOpacity(.1),
+              splashColor: _terra.withOpacity(.15),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                 decoration: BoxDecoration(
-                  color: selected ? _white.withOpacity(.10) : Colors.transparent,
+                  color: selected ? _terra.withOpacity(.15) : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
-                  border: selected ? Border.all(color: _gold.withOpacity(.2)) : null,
+                  border: selected ? Border.all(color: _terra.withOpacity(.3)) : null,
                 ),
                 child: Row(children: [
                   Container(
                     width: 36, height: 36,
                     decoration: BoxDecoration(
                       color: selected
-                          ? _gold.withOpacity(.2)
+                          ? _terra.withOpacity(.25)
                           : _white.withOpacity(.07),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(entry.icon, size: 18,
-                        color: selected ? _gold : _menuTxt.withOpacity(.7)),
+                        color: selected ? _terra : _menuTxt.withOpacity(.7)),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -697,7 +679,7 @@ class _SidebarItem extends StatelessWidget {
                     Container(
                       width: 6, height: 6,
                       decoration: const BoxDecoration(
-                          color: _gold, shape: BoxShape.circle),
+                          color: _terra, shape: BoxShape.circle),
                     ),
                 ]),
               ),
@@ -726,16 +708,15 @@ class _SidebarLogoutItem extends StatelessWidget {
             Container(
               width: 36, height: 36,
               decoration: BoxDecoration(
-                color: const Color(0xFF25D366).withOpacity(.2),
+                color: Colors.red.withOpacity(.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.logout_rounded, size: 18,
-                  color: const Color(0xFF25D366)),
+              child: const Icon(Icons.logout_rounded, size: 18, color: Colors.redAccent),
             ),
             const SizedBox(width: 14),
-            Text('common.logout',
+            const Text('Déconnexion',
                 style: TextStyle(
-                    color: const Color(0xFF25D366).withOpacity(.9),
+                    color: Colors.redAccent,
                     fontSize: 14, fontWeight: FontWeight.w500)),
           ]),
         ),
@@ -744,22 +725,41 @@ class _SidebarLogoutItem extends StatelessWidget {
   }
 }
 
-// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Sidebar background pattern ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
+// WhatsApp-style sidebar background — colorful green shapes
 class _SidebarPatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = const Color(0xFF34E07E).withOpacity(.04)
+    // Large blurred circle top-left (like WhatsApp green blob)
+    final p1 = Paint()
+      ..color = const Color(0xFF25D366).withOpacity(.12)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 60);
+    canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.12), 100, p1);
+
+    // Large blurred circle bottom-right
+    final p2 = Paint()
+      ..color = const Color(0xFF128C7E).withOpacity(.10)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 80);
+    canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.75), 130, p2);
+
+    // Medium circle middle
+    final p3 = Paint()
+      ..color = const Color(0xFF34E07E).withOpacity(.07)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 40);
+    canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.45), 70, p3);
+
+    // Diamond grid overlay (subtle)
+    final pg = Paint()
+      ..color = const Color(0xFF25D366).withOpacity(.05)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-    const sp = 48.0;
+      ..strokeWidth = 1.0;
+    const sp = 44.0;
     final cols = (size.width / sp).ceil() + 1;
     final rows = (size.height / sp).ceil() + 1;
     for (int r = 0; r < rows; r++) {
       for (int c = 0; c < cols; c++) {
         final cx = c * sp + (r.isEven ? sp * 0.5 : 0);
         final cy = r * sp * 0.866;
-        _diamond(canvas, Offset(cx, cy), 8, p);
+        _diamond(canvas, Offset(cx, cy), 7, pg);
       }
     }
   }
@@ -778,7 +778,6 @@ class _SidebarPatternPainter extends CustomPainter {
   bool shouldRepaint(_) => false;
 }
 
-// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Placeholder page ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 class _Placeholder extends StatelessWidget {
   final String title;
   const _Placeholder(this.title);
@@ -798,27 +797,23 @@ class _Placeholder extends StatelessWidget {
                 child: Container(
                   width: 38, height: 38,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5EEE6),
+                    color: const Color(0xFF1A1D21),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.arrow_back_rounded, color: _ink, size: 20),
                 ),
               ),
               const SizedBox(width: 12),
-              Text(title, style: const TextStyle(color: _ink, fontSize: 17,
-                  fontWeight: FontWeight.w700)),
+              Text(title, style: const TextStyle(color: _ink, fontSize: 17, fontWeight: FontWeight.w700)),
             ]),
           ),
-          Expanded(
-            child: Center(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.person_outline_rounded, size: 64, color: _terra),
-                const SizedBox(height: 16),
-                Text(title, style: const TextStyle(fontSize: 20,
-                    fontWeight: FontWeight.w700, color: _ink)),
-              ]),
-            ),
-          ),
+          const Expanded(child: Center(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.construction_rounded, color: _muted, size: 40),
+              SizedBox(height: 12),
+              Text('Page en construction', style: TextStyle(color: _muted, fontSize: 14)),
+            ]),
+          )),
         ]),
       ),
     );
