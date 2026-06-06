@@ -9,7 +9,7 @@ import '../pages/notifications_page.dart';
 import '../pages/search_page.dart';
 import '../widgets/responsive_role_shell.dart' show RoleNavEntry;
 
-// ── Design tokens ──────────────────────────────────────────────────────────
+// ââ Design tokens ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const _pageBg    = Color(0xFF0D0E11);
 const _white     = Colors.white;
 const _ink       = Color(0xFFF2F3F5);
@@ -19,7 +19,7 @@ const _orange    = Color(0xFF128C7E);
 const _gold      = Color(0xFF34E07E);
 const _menuAcc   = Color(0xFF34E07E);
 
-// African sidebar background — dark terracotta/brown, NOT green
+// African sidebar background â dark terracotta/brown, NOT green
 const _menuBg1   = Color(0xFF0A0C0F);
 const _menuBg2   = Color(0xFF111316);
 const _menuTxt   = Color(0xFFF2F3F5);
@@ -160,7 +160,7 @@ class _MobileShellState extends ConsumerState<MobileShell>
         body: Stack(
           clipBehavior: Clip.none,
           children: [
-            // 1 ─ Sidebar panel
+            // 1 â Sidebar panel
             Positioned.fill(
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -177,7 +177,7 @@ class _MobileShellState extends ConsumerState<MobileShell>
               ),
             ),
 
-            // 2 ─ Main card with shadow
+            // 2 â Main card with shadow
             Transform(
               transform: Matrix4.identity()
                 ..translate(size.width * _xShift, size.height * _yShift)
@@ -232,7 +232,7 @@ class _MobileShellState extends ConsumerState<MobileShell>
               ),
             ),
 
-            // 3 ─ Edge bubble
+            // 3 â Edge bubble
             if (_showEdgeBubble || (_menuCtrl.value > 0 && _menuCtrl.value < 0.15))
               Positioned(
                 left: 4 + _menuCtrl.value * 12,
@@ -246,7 +246,7 @@ class _MobileShellState extends ConsumerState<MobileShell>
   }
 }
 
-// ─── Full Page Wrapper ────────────────────────────────────────────────────
+// âââ Full Page Wrapper ââââââââââââââââââââââââââââââââââââââââââââââââââââ
 class _FullPage extends StatelessWidget {
   final String title;
   final Widget child;
@@ -259,7 +259,7 @@ class _FullPage extends StatelessWidget {
       body: SafeArea(
         child: Column(children: [
           Container(
-            color: _white,
+            color: const Color(0xFF111316),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(children: [
               GestureDetector(
@@ -285,7 +285,7 @@ class _FullPage extends StatelessWidget {
   }
 }
 
-// ─── Smart Header ─────────────────────────────────────────────────────────
+// âââ Smart Header âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 class _SmartHeader extends StatelessWidget {
   final String title;
   final String? user;
@@ -314,10 +314,10 @@ class _SmartHeader extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ── Top bar ──────────────────────────────────────────────────────
+        // ââ Top bar ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
         Container(
           height: 56,
-          color: _white,
+          color: const Color(0xFF111316),
           padding: const EdgeInsets.symmetric(horizontal: 6),
           child: Row(children: [
             _HeaderBtn(onTap: onMenu, child: const _HamburgerIcon()),
@@ -361,16 +361,16 @@ class _SmartHeader extends StatelessWidget {
                       blurRadius: 6, offset: const Offset(0, 2))],
                 ),
                 child: Center(child: Text(initials,
-                    style: const TextStyle(color: _white, fontSize: 11,
+                    style: const TextStyle(color: const Color(0xFF111316), fontSize: 11,
                         fontWeight: FontWeight.w800))),
               ),
             ),
           ]),
         ),
 
-        // ── Tab nav bar ───────────────────────────────────────────────────
+        // ââ Tab nav bar âââââââââââââââââââââââââââââââââââââââââââââââââââ
         Container(
-          color: _white,
+          color: const Color(0xFF111316),
           height: 44,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
@@ -468,7 +468,7 @@ class _EdgeBubble extends StatelessWidget {
   }
 }
 
-// ─── Sidebar Panel — African dark brown theme ─────────────────────────────
+// âââ Sidebar Panel â African dark brown theme âââââââââââââââââââââââââââââ
 class _SidebarPanel extends StatefulWidget {
   final List<RoleNavEntry> entries;
   final String? user;
@@ -538,7 +538,7 @@ class _SidebarPanelState extends State<_SidebarPanel> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Top: account icon + X ──────────────────────────────
+                // ââ Top: account icon + X ââââââââââââââââââââââââââââââ
                 SafeArea(
                   bottom: false,
                   child: Padding(
@@ -556,7 +556,7 @@ class _SidebarPanelState extends State<_SidebarPanel> {
                           ),
                           child: Center(
                             child: Text(initials,
-                                style: const TextStyle(color: _white,
+                                style: const TextStyle(color: const Color(0xFF111316),
                                     fontWeight: FontWeight.w800, fontSize: 16)),
                           ),
                         ),
@@ -571,14 +571,14 @@ class _SidebarPanelState extends State<_SidebarPanel> {
                             color: _white.withOpacity(.10),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.close_rounded, color: _white, size: 18),
+                          child: const Icon(Icons.close_rounded, color: const Color(0xFF111316), size: 18),
                         ),
                       ),
                     ]),
                   ),
                 ),
 
-                // ── Role badge ─────────────────────────────────────────
+                // ââ Role badge âââââââââââââââââââââââââââââââââââââââââ
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                   child: Container(
@@ -601,7 +601,7 @@ class _SidebarPanelState extends State<_SidebarPanel> {
                     color: _white.withOpacity(.08)),
                 const SizedBox(height: 8),
 
-                // ── Nav groups ─────────────────────────────────────────
+                // ââ Nav groups âââââââââââââââââââââââââââââââââââââââââ
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -630,7 +630,7 @@ class _SidebarPanelState extends State<_SidebarPanel> {
                           ),
                       ],
 
-                      // ── Logout as last item ─────────────────────────
+                      // ââ Logout as last item âââââââââââââââââââââââââ
                       const SizedBox(height: 8),
                       Container(height: 1, color: _white.withOpacity(.06),
                           margin: const EdgeInsets.symmetric(horizontal: 4)),
@@ -640,7 +640,7 @@ class _SidebarPanelState extends State<_SidebarPanel> {
                   ),
                 ),
 
-                // ── App branding footer ────────────────────────────────
+                // ââ App branding footer ââââââââââââââââââââââââââââââââ
                 SafeArea(
                   top: false,
                   child: Padding(
@@ -675,7 +675,7 @@ class _NavGroup {
   const _NavGroup({required this.labelKey, required this.entries});
 }
 
-// ── Sidebar Item ─────────────────────────────────────────────────────────
+// ââ Sidebar Item âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 class _SidebarItem extends StatelessWidget {
   final RoleNavEntry entry;
   final bool selected;
@@ -784,7 +784,7 @@ class _SidebarLogoutItem extends StatelessWidget {
   }
 }
 
-// ── Sidebar background pattern ────────────────────────────────────────────
+// ââ Sidebar background pattern ââââââââââââââââââââââââââââââââââââââââââââ
 class _SidebarPatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -818,7 +818,7 @@ class _SidebarPatternPainter extends CustomPainter {
   bool shouldRepaint(_) => false;
 }
 
-// ── Placeholder page ──────────────────────────────────────────────────────
+// ââ Placeholder page ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 class _Placeholder extends StatelessWidget {
   final String title;
   const _Placeholder(this.title);
@@ -830,7 +830,7 @@ class _Placeholder extends StatelessWidget {
       body: SafeArea(
         child: Column(children: [
           Container(
-            color: _white,
+            color: const Color(0xFF111316),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(children: [
               GestureDetector(
