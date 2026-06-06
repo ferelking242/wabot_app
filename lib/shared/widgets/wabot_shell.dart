@@ -11,6 +11,7 @@ import '../../features/automation/presentation/automation_screen.dart';
 import '../../features/analytics/presentation/analytics_screen.dart';
 import '../../features/commands/presentation/commands_screen.dart';
 import '../../features/groups/presentation/groups_screen.dart';
+import '../../features/docs/presentation/docs_screen.dart';
 import '../../shared/pages/settings_page.dart';
 
 class WabotShell extends StatelessWidget {
@@ -26,6 +27,7 @@ class WabotShell extends StatelessWidget {
     ]),
     DesktopNavGroup(labelKey: 'bot', items: const [
       DesktopNavItem(icon: Icons.terminal_outlined,      labelKey: 'Commandes',   page: CommandsScreen()),
+      DesktopNavItem(icon: Icons.book_outlined,          labelKey: 'Docs',        page: DocsScreen()),
       DesktopNavItem(icon: Icons.bar_chart_outlined,     labelKey: 'Analytics',   page: AnalyticsScreen()),
       DesktopNavItem(icon: Icons.auto_fix_high_outlined, labelKey: 'Automation',  page: AutomationScreen()),
       DesktopNavItem(icon: Icons.settings_outlined,      labelKey: 'Paramètres',  page: SettingsPage()),
@@ -36,7 +38,7 @@ class WabotShell extends StatelessWidget {
     RoleNavEntry(icon: Icons.dashboard_outlined,     labelKey: 'Dashboard',  page: DashboardScreen()),
     RoleNavEntry(icon: Icons.chat_outlined,          labelKey: 'Chats',      page: ChatsScreen()),
     RoleNavEntry(icon: Icons.groups_outlined,        labelKey: 'Groupes',    page: GroupsScreen()),
-    RoleNavEntry(icon: Icons.terminal_outlined,      labelKey: 'Commandes',  page: CommandsScreen()),
+    RoleNavEntry(icon: Icons.book_outlined,          labelKey: 'Docs',       page: DocsScreen()),
   ];
 
   static const _drawer = [
@@ -46,6 +48,7 @@ class WabotShell extends StatelessWidget {
     RoleNavEntry(icon: Icons.groups_outlined,        labelKey: 'Groupes',     page: GroupsScreen()),
     RoleNavEntry(icon: Icons.receipt_long_outlined,  labelKey: 'Logs',        page: LogsScreen()),
     RoleNavEntry(icon: Icons.terminal_outlined,      labelKey: 'Commandes',   page: CommandsScreen()),
+    RoleNavEntry(icon: Icons.book_outlined,          labelKey: 'Docs',        page: DocsScreen()),
     RoleNavEntry(icon: Icons.bar_chart_outlined,     labelKey: 'Analytics',   page: AnalyticsScreen()),
     RoleNavEntry(icon: Icons.auto_fix_high_outlined, labelKey: 'Automation',  page: AutomationScreen()),
     RoleNavEntry(icon: Icons.settings_outlined,      labelKey: 'Paramètres',  page: SettingsPage()),
