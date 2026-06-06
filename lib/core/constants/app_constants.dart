@@ -28,6 +28,7 @@ abstract final class AppConstants {
   static const String routeAutomation = '/automation';
   static const String routeCommands   = '/commands';
   static const String routeSettings   = '/settings';
+  static const String routeBot         = '/bot';
 
   // ── API paths ─────────────────────────────────────────────────────────────
   static const String apiStatus   = '/api/v1/instance/status';
