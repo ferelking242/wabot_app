@@ -12,6 +12,7 @@ import '../../../core/services/platform_service.dart';
 import '../../../presentation/providers/auth_providers.dart';
 import '../providers/pairing_provider.dart';
 import '../../auth/presentation/splash_screen.dart' show WabotLogoWidget;
+  import '../../../core/services/supabase_service.dart';
 
 const _g    = Color(0xFF25D366);
 const _gd   = Color(0xFF128C7E);
