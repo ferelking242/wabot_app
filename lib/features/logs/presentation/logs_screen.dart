@@ -43,10 +43,10 @@ import 'package:flutter/material.dart';
             padding: const EdgeInsets.fromLTRB(16, 20, 8, 8),
             child: Row(children: [
               const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text("Logs d'activité",
+                Text("Logs d'activitÃ©",
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: _ink)),
                 SizedBox(height: 2),
-                Text('Messages et commandes reçus par le bot',
+                Text('Messages et commandes reÃ§us par le bot',
                   style: TextStyle(color: _muted, fontSize: 12)),
               ])),
               IconButton(icon: const Icon(Icons.refresh_rounded, color: _muted), onPressed: _load),
@@ -130,7 +130,7 @@ import 'package:flutter/material.dart';
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Icon(Icons.receipt_long_outlined, size: 52, color: const Color(0xFF8A9199).withOpacity(.4)),
         const SizedBox(height: 14),
-        const Text('Aucun log pour l'instant', style: TextStyle(color: Color(0xFF8A9199), fontSize: 14)),
+        const Text("Aucun log pour l'instant", style: TextStyle(color: Color(0xFF8A9199), fontSize: 14)),
         const SizedBox(height: 6),
         const Text('Envoyez .ping ou .help dans WhatsApp pour tester',
           textAlign: TextAlign.center,
