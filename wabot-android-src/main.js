@@ -219,28 +219,42 @@
                   text: [
                     'Wabot - Commandes disponibles',
                     '',
-                    'Systeme',
-                    '.ping   - Verifier si le bot est actif',
-                    '.help   - Afficher ce menu',
-                    '.alive  - Statut du bot',
-                    '.owner  - Infos du proprietaire',
+                    'SYSTEME:',
+                    '.ping          - Bot actif ?',
+                    '.alive         - Statut complet (uptime, RAM)',
+                    '.help          - Ce menu',
+                    '.owner         - Infos proprietaire',
                     '',
-                    'Groupe',
-                    '.tagall         - Mentionner tous les membres',
+                    'GROUPE:',
+                    '.tagall         - Mentionner tout le groupe',
                     '.groupinfo      - Infos du groupe',
                     '.kick @user     - Exclure un membre',
-                    '.mute           - Muter le groupe (admins seulement)',
-                    '.unmute         - Demuter le groupe',
                     '.promote @user  - Promouvoir admin',
                     '.demote @user   - Retrograder admin',
+                    '.mute           - Muter le groupe',
+                    '.unmute         - Demuter le groupe',
+                    '.ban @user      - Bannir un membre',
+                    '.warn @user     - Avertir un membre',
                     '',
-                    'Fun',
-                    '.joke   - Blague aleatoire',
-                    '.quote  - Citation inspirante',
-                    '.fact   - Fait insolite',
-                    '.8ball <question> - Boule magique',
+                    'FUN:',
+                    '.joke           - Blague aleatoire',
+                    '.quote          - Citation inspirante',
+                    '.fact           - Fait insolite',
+                    '.8ball <q>      - Boule magique',
+                    '.dare           - Defi aleatoire',
+                    '.truth          - Question verite',
+                    '.compliment     - Compliment aleatoire',
+                    '.insult         - Insulte amicale',
+                    '.coinflip       - Pile ou face',
+                    '.trivia         - Culture generale',
+                    '.rps            - Pierre-Feuille-Ciseaux',
                     '',
-                    'Prefixe : . | Version : 1.0',
+                    'UTILITAIRES:',
+                    '.weather <city> - Meteo en direct (wttr.in)',
+                    '.translate <x>  - Traduire en francais',
+                    '.sticker        - Image citee -> sticker WA',
+                    '',
+                    'Prefixe: . | v2.0 | Appuyez longuement pour copier',
                   ].join('\n'),
                 }, { quoted: msg });
                 break;
@@ -378,6 +392,108 @@
                   text: 'Boule Magique\nQuestion: ' + argsText +
                     '\nReponse: ' + answers[Math.floor(Math.random() * answers.length)],
                 }, { quoted: msg });
+                break;
+              }
+
+
+              case '.coinflip': {
+                const cf = Math.random() < 0.5 ? 'PILE' : 'FACE';
+                await sock.sendMessage(from, { text: '🪙 ' + cf + ' !' }, { quoted: msg });
+                break;
+              }
+
+              case '.dare': {
+                const dares = ['Envoie un message vocal en chantant 30s.', 'Change ton statut pour "Je suis le meilleur" 1h.', 'Envoie une photo avec 3 emojis sur le visage.', 'Ecris un poeme sur le bot en 4 lignes.', 'Fais 10 pompes et envoie une video.', 'Envoie un message a quelqu un que tu n as pas contacte depuis longtemps.'];
+                await sock.sendMessage(from, { text: '🎯 *Defi:* ' + dares[Math.floor(Math.random() * dares.length)] }, { quoted: msg });
+                break;
+              }
+
+              case '.truth': {
+                const truths = ['Quelle est la chose la plus embarrassante qui vous soit arrivee ?', 'Quel est votre plus grand secret ?', 'Quelle est la chose la plus folle que vous ayez faite ?', 'Qui etait votre premier crush ?', 'Quel est le mensonge que vous avez dit le plus souvent ?'];
+                await sock.sendMessage(from, { text: '💬 *Verite:* ' + truths[Math.floor(Math.random() * truths.length)] }, { quoted: msg });
+                break;
+              }
+
+              case '.compliment': {
+                const comps = ['Tu es brillant(e) et inspirant(e) !', 'Tu as un sens de l humour incroyable.', 'Ton intelligence est vraiment admirable.', 'Tu rends le monde meilleur juste en existant.', 'Tout le monde s illumine quand tu arrives !'];
+                await sock.sendMessage(from, { text: '💝 ' + comps[Math.floor(Math.random() * comps.length)] }, { quoted: msg });
+                break;
+              }
+
+              case '.insult': {
+                const ins = ['T es tellement lent(e) que les escargots te font signe de la main.', 'Si l intelligence etait de l eau, tu serais le desert du Sahara.', 'Meme Google ne peut pas trouver ton intelligence.', 'T es tellement bete que t as mis du sel dans ta boite mail.'];
+                await sock.sendMessage(from, { text: '🤣 (humour) ' + ins[Math.floor(Math.random() * ins.length)] }, { quoted: msg });
+                break;
+              }
+
+              case '.rps':
+              case '.rockpaperscissors': {
+                const rpsOpts = ['Pierre ✊', 'Feuille ✋', 'Ciseaux ✌️'];
+                const rpsBot = rpsOpts[Math.floor(Math.random() * 3)];
+                const rpsPlayer = argsText ? 'Tu : *' + argsText + '*  |  ' : '';
+                await sock.sendMessage(from, { text: rpsPlayer + 'Bot: *' + rpsBot + '*' }, { quoted: msg });
+                break;
+              }
+
+              case '.trivia': {
+                const trivias = [{q:'Capitale de la France ?',a:'Paris'},{q:'Combien de continents ?',a:'7'},{q:'Plus grand ocean ?',a:'Pacifique'},{q:'Planete la plus proche du Soleil ?',a:'Mercure'},{q:'Annee fondation WhatsApp ?',a:'2009'},{q:'Pattes d une araignee ?',a:'8'},{q:'Animal le plus rapide ?',a:'Le guepard'}];
+                const tv = trivias[Math.floor(Math.random() * trivias.length)];
+                await sock.sendMessage(from, { text: '🧠 *Trivia:* ' + tv.q + '\n_(30 secondes pour repondre)_' }, { quoted: msg });
+                setTimeout(async () => { try { await sock.sendMessage(from, { text: '⏰ Reponse: *' + tv.a + '*' }); } catch(_) {} }, 30000);
+                break;
+              }
+
+              case '.weather': {
+                if (!argsText) { await sock.sendMessage(from, { text: 'Usage: .weather <ville>\nEx: .weather Paris' }, { quoted: msg }); break; }
+                try {
+                  const cityEnc = encodeURIComponent(argsText.trim());
+                  const wResp = await fetch('https://wttr.in/' + cityEnc + '?format=3&lang=fr');
+                  const wText = await wResp.text();
+                  await sock.sendMessage(from, { text: '🌤 *Meteo:* ' + wText.trim() }, { quoted: msg });
+                } catch (e) { await sock.sendMessage(from, { text: 'Erreur meteo: ' + e.message }, { quoted: msg }); }
+                break;
+              }
+
+              case '.translate': {
+                if (!argsText) { await sock.sendMessage(from, { text: 'Usage: .translate <texte>\nEx: .translate hello world' }, { quoted: msg }); break; }
+                try {
+                  const trEnc = encodeURIComponent(argsText.trim());
+                  const trResp = await fetch('https://api.mymemory.translated.net/get?q=' + trEnc + '&langpair=auto|fr');
+                  const trData = await trResp.json();
+                  const translated = trData.responseData?.translatedText || 'Erreur traduction';
+                  await sock.sendMessage(from, { text: '🌍 *Traduction:* ' + translated }, { quoted: msg });
+                } catch (e) { await sock.sendMessage(from, { text: 'Erreur: ' + e.message }, { quoted: msg }); }
+                break;
+              }
+
+              case '.ban': {
+                if (!isOwner && !isGroup) { await sock.sendMessage(from, { text: 'Commande reservee au proprietaire.' }, { quoted: msg }); break; }
+                const toBan = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+                if (!toBan.length) { await sock.sendMessage(from, { text: 'Mentionnez un utilisateur avec @.' }, { quoted: msg }); break; }
+                if (isGroup) await sock.groupParticipantsUpdate(from, toBan, 'remove');
+                await sock.sendMessage(from, { text: '🚫 ' + toBan.map(j => '@' + j.split('@')[0]).join(', ') + ' banni(s).', mentions: toBan }, { quoted: msg });
+                break;
+              }
+
+              case '.warn': {
+                const toWarn = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+                if (!toWarn.length) { await sock.sendMessage(from, { text: 'Mentionnez un utilisateur avec @.' }, { quoted: msg }); break; }
+                await sock.sendMessage(from, { text: '⚠️ *Avertissement* pour ' + toWarn.map(j => '@' + j.split('@')[0]).join(', ') + '\n' + (argsText || 'Comportement inapproprie.'), mentions: toWarn }, { quoted: msg });
+                break;
+              }
+
+              case '.sticker': {
+                const quotedCtx = msg.message?.extendedTextMessage?.contextInfo;
+                const quotedMsg2 = quotedCtx?.quotedMessage;
+                if (!quotedMsg2?.imageMessage && !quotedMsg2?.videoMessage) {
+                  await sock.sendMessage(from, { text: '📌 Reponds a une image avec .sticker' }, { quoted: msg }); break;
+                }
+                try {
+                  const { downloadMediaMessage } = require('@whiskeysockets/baileys');
+                  const fMsg = { key: { remoteJid: from, id: quotedCtx.stanzaId, fromMe: false, participant: quotedCtx.participant }, message: quotedMsg2 };
+                  const buf = await downloadMediaMessage(fMsg, 'buffer', {}, { logger: noopLogger, reuploadRequest: sock.updateMediaMessage });
+                  await sock.sendMessage(from, { sticker: buf }, { quoted: msg });
+                } catch (e) { await sock.sendMessage(from, { text: 'Erreur sticker: ' + e.message }, { quoted: msg }); }
                 break;
               }
 
