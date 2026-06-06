@@ -1,9 +1,12 @@
 'use strict';
 process.env.NODE_ENV = 'production';
 
-// nodejs-mobile is compiled without ICU — TextDecoder doesn't support `fatal: true`.
-// Patch it before any import (baileys / whatsapp-rust-bridge) can trigger the crash.
-;(function patchTextDecoderForNoICU() {
+// ── nodejs-mobile polyfills ────────────────────────────────────────────────
+// nodejs-mobile is compiled without ICU and without full Web APIs.
+// All patches must run BEFORE any require() so baileys never sees the broken APIs.
+
+// 1. TextDecoder: `fatal` option not supported without ICU — strip it silently.
+;(function patchTextDecoder() {
   if (typeof TextDecoder === 'undefined') return;
   const _Native = TextDecoder;
   global.TextDecoder = class TextDecoder extends _Native {
@@ -12,6 +15,23 @@ process.env.NODE_ENV = 'production';
     }
   };
 })();
+
+// 2. globalThis.crypto / SubtleCrypto: missing in nodejs-mobile builds.
+//    Try native Node.js webcrypto first; fall back to @peculiar/webcrypto (pure-JS).
+;(function patchCrypto() {
+  if (globalThis.crypto && globalThis.crypto.subtle) return; // already fine
+  try {
+    const { webcrypto } = require('crypto');
+    if (webcrypto && webcrypto.subtle) {
+      globalThis.crypto = webcrypto;
+      return;
+    }
+  } catch (_) {}
+  // Pure-JS WebCrypto polyfill — covers all SubtleCrypto operations baileys needs.
+  const { Crypto } = require('@peculiar/webcrypto');
+  globalThis.crypto = new Crypto();
+})();
+// ── end polyfills ──────────────────────────────────────────────────────────
 
 const { makeWASocket, DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } =
   require('@whiskeysockets/baileys');
