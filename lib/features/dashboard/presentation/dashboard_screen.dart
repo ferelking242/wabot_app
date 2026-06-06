@@ -9,6 +9,11 @@ const _muted  = Color(0xFF8A9199);
 const _border = Color(0xFF1E2128);
 const _card   = Color(0xFF111316);
 const _bg     = Color(0xFF0D0E11);
+const _red    = Color(0xFFFF6B6B);
+const _blue   = Color(0xFF57B6FF);
+const _purple = Color(0xFF9B59B6);
+const _orange = Color(0xFFE67E22);
+const _teal   = Color(0xFF1ABC9C);
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -16,33 +21,58 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
+    with SingleTickerProviderStateMixin {
   Map<String, dynamic>? _botStatus;
   Map<String, dynamic>? _analytics;
   bool _loading = true;
+  late final AnimationController _pulseCtrl;
 
   @override
   void initState() {
     super.initState();
+    _pulseCtrl = AnimationController(
+        vsync: this, duration: const Duration(seconds: 2))
+      ..repeat(reverse: true);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final api = ref.read(apiServiceProvider);
+      final api     = ref.read(apiServiceProvider);
       final results = await Future.wait([
         api.getBotStatus(),
         api.getAnalytics(period: '7d'),
       ]);
       if (mounted) setState(() {
-        _botStatus  = results[0];
-        _analytics  = results[1];
-        _loading    = false;
+        _botStatus = results[0];
+        _analytics = results[1];
+        _loading   = false;
       });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String _fmtNum(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000)    return '${(n / 1000).toStringAsFixed(1)}k';
+    return n.toString();
+  }
+
+  String _fmtUptime(int seconds) {
+    if (seconds <= 0) return '--';
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    if (h > 0) return '${h}h ${m}m';
+    return '${m}m';
   }
 
   @override
@@ -51,198 +81,382 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final an        = _analytics ?? {};
     final connected = d['status'] == 'online';
     final phone     = (d['phoneNumber'] as String? ?? '').replaceAll('@s.whatsapp.net', '');
+    final name      = d['name'] as String? ?? 'Wabot';
     final uptime    = d['uptime'] as int? ?? 0;
-    final uptimeStr = uptime > 0
-        ? '${(uptime ~/ 3600)}h ${((uptime % 3600) ~/ 60)}m'
-        : '--';
     final ram       = d['ramUsage'] as int? ?? 0;
     final ramTotal  = d['ramTotal'] as int? ?? 512;
-    final groups    = an['totalGroups'] as int? ?? (d['groupsCount'] as int? ?? 0);
+    final ramPct    = ramTotal > 0 ? (ram / ramTotal).clamp(0.0, 1.0) : 0.0;
+    final groups    = an['totalGroups']   as int? ?? (d['groupsCount']   as int? ?? 0);
     final msgs      = an['totalMessages'] as int? ?? (d['messagesTotal'] as int? ?? 0);
     final cmds      = an['totalCommands'] as int? ?? 0;
-    final users     = an['totalUsers'] as int? ?? 0;
-    final msgGrowth = (an['messagesGrowth'] as num?)?.toStringAsFixed(1) ?? '0';
-    final cmdGrowth = (an['commandsGrowth'] as num?)?.toStringAsFixed(1) ?? '0';
-
-    String _fmtNum(int n) {
-      if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
-      if (n >= 1000)    return '${(n / 1000).toStringAsFixed(1)}k';
-      return n.toString();
-    }
+    final users     = an['totalUsers']    as int? ?? 0;
+    final msgGrowth = (an['messagesGrowth'] as num?)?.toDouble() ?? 0.0;
+    final cmdGrowth = (an['commandsGrowth'] as num?)?.toDouble() ?? 0.0;
+    final topCmds   = (an['topCommands'] as List? ?? []).cast<Map<String, dynamic>>();
+    final maxCount  = topCmds.isNotEmpty ? (topCmds.first['count'] as int? ?? 1) : 1;
 
     return Scaffold(
       backgroundColor: _bg,
       body: RefreshIndicator(
         color: _g,
+        backgroundColor: _card,
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 36),
           children: [
-            // Header
-            Row(children: [
+
+            // ── Header ─────────────────────────────────────────────────────
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Dashboard', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _ink)),
+                const Text('Dashboard', style: TextStyle(
+                    fontSize: 24, fontWeight: FontWeight.w900,
+                    color: _ink, letterSpacing: -0.5)),
                 const SizedBox(height: 4),
-                Text('État du bot Wabot', style: TextStyle(color: _muted, fontSize: 13)),
+                Row(children: [
+                  AnimatedBuilder(
+                    animation: _pulseCtrl,
+                    builder: (_, __) => Container(
+                      width: 7, height: 7,
+                      decoration: BoxDecoration(
+                        color: connected ? _g : _red,
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(
+                          color: (connected ? _g : _red).withOpacity(
+                              connected ? 0.3 + 0.4 * _pulseCtrl.value : 0.3),
+                          blurRadius: connected ? 4 + 4 * _pulseCtrl.value : 4,
+                        )],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(connected ? 'Bot connecté' : 'Bot hors ligne',
+                      style: TextStyle(
+                          color: connected ? _g : _red,
+                          fontSize: 12, fontWeight: FontWeight.w600)),
+                ]),
               ])),
               if (_loading)
-                const SizedBox(width: 18, height: 18,
-                  child: CircularProgressIndicator(color: _g, strokeWidth: 2))
+                const SizedBox(width: 20, height: 20,
+                    child: CircularProgressIndicator(color: _g, strokeWidth: 2))
               else
                 GestureDetector(
                   onTap: _load,
-                  child: const Icon(Icons.refresh_rounded, color: _muted, size: 20)),
+                  child: Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                      color: _card,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _border),
+                    ),
+                    child: const Icon(Icons.refresh_rounded, color: _muted, size: 18)),
+                ),
             ]),
             const SizedBox(height: 20),
 
-            // Status card — connexion
+            // ── Hero card : statut connexion ─────────────────────────────
             Container(
-              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                gradient: connected
-                  ? LinearGradient(colors: [_g.withOpacity(.12), _gd.withOpacity(.08)], begin: Alignment.topLeft, end: Alignment.bottomRight)
-                  : null,
-                color: connected ? null : _card,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: connected ? _g.withOpacity(.35) : _border),
+                gradient: LinearGradient(
+                  colors: connected
+                      ? [const Color(0xFF0E2018), const Color(0xFF091A10)]
+                      : [const Color(0xFF1A1010), const Color(0xFF110D0D)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: connected ? _g.withOpacity(.25) : _red.withOpacity(.2)),
               ),
-              child: Row(children: [
-                Container(width: 48, height: 48,
-                  decoration: BoxDecoration(
-                    color: connected ? _g.withOpacity(.2) : Colors.white10,
-                    borderRadius: BorderRadius.circular(14)),
-                  child: Icon(
-                    connected ? Icons.wifi_rounded : Icons.wifi_off_rounded,
-                    color: connected ? _g : _muted, size: 24)),
-                const SizedBox(width: 14),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(connected ? 'Bot connecté ✅' : 'Bot déconnecté',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
-                      color: connected ? _g : _ink)),
-                  const SizedBox(height: 3),
-                  Text(
-                    connected && phone.isNotEmpty ? '📱 +$phone' : 'Aucun compte lié',
-                    style: const TextStyle(color: _muted, fontSize: 12)),
-                ])),
-                if (connected) Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(color: _g.withOpacity(.15), borderRadius: BorderRadius.circular(20)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Container(width: 8, height: 8, decoration: BoxDecoration(
-                      color: _g, shape: BoxShape.circle,
-                      boxShadow: [BoxShadow(color: _g.withOpacity(.5), blurRadius: 6)])),
-                    const SizedBox(width: 5),
-                    const Text('En ligne', style: TextStyle(color: _g, fontSize: 11, fontWeight: FontWeight.w700)),
+              child: Stack(children: [
+                // Blob décoratif
+                Positioned(
+                  right: -20, top: -20,
+                  child: Container(
+                    width: 120, height: 120,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: (connected ? _g : _red).withOpacity(.05),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(children: [
+                    // Avatar
+                    Container(
+                      width: 56, height: 56,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                            colors: connected ? [_g, _gd] : [_red, const Color(0xFFCC3333)],
+                            begin: Alignment.topLeft, end: Alignment.bottomRight),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [BoxShadow(
+                          color: (connected ? _g : _red).withOpacity(.25),
+                          blurRadius: 12, offset: const Offset(0, 4),
+                        )],
+                      ),
+                      child: Center(child: Icon(
+                        connected ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+                        color: Colors.white, size: 26,
+                      )),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(connected ? name : 'Déconnecté',
+                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _ink)),
+                      const SizedBox(height: 4),
+                      Text(
+                        connected && phone.isNotEmpty ? '+$phone' : 'Aucun compte lié',
+                        style: const TextStyle(color: _muted, fontSize: 12.5)),
+                      const SizedBox(height: 8),
+                      if (connected) Row(children: [
+                        _MiniTag(label: '⬆ ${_fmtUptime(uptime)}', color: _teal),
+                        const SizedBox(width: 6),
+                        _MiniTag(label: '🖥 ${ram}MB RAM', color: _blue),
+                      ]),
+                    ])),
+                    if (connected)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: _g.withOpacity(.15),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(color: _g.withOpacity(.3)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          AnimatedBuilder(
+                            animation: _pulseCtrl,
+                            builder: (_, __) => Container(
+                              width: 7, height: 7,
+                              decoration: BoxDecoration(
+                                color: _g, shape: BoxShape.circle,
+                                boxShadow: [BoxShadow(
+                                  color: _g.withOpacity(0.4 + 0.4 * _pulseCtrl.value),
+                                  blurRadius: 4 + 4 * _pulseCtrl.value,
+                                )],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text('En ligne', style: TextStyle(
+                              color: _g, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                        ]),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: _red.withOpacity(.12),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(color: _red.withOpacity(.25)),
+                        ),
+                        child: const Text('Hors ligne', style: TextStyle(
+                            color: _red, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                      ),
                   ]),
                 ),
               ]),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-            // Stats grid — 4 cards
-            const Text('Vue d\'ensemble', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _muted, letterSpacing: 0.5)),
+            // ── Section : Vue d'ensemble ─────────────────────────────────
+            _SectionLabel(label: 'Vue d\'ensemble', trailing: '7 derniers jours'),
             const SizedBox(height: 10),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.55,
-              children: [
-                _Stat(icon: Icons.groups_rounded, label: 'Groupes', value: _fmtNum(groups), color: const Color(0xFF4ECDC4), sub: null),
-                _Stat(icon: Icons.chat_bubble_rounded, label: 'Messages (7j)', value: _fmtNum(msgs), color: _g, sub: '+$msgGrowth%'),
-                _Stat(icon: Icons.terminal_rounded, label: 'Commandes (7j)', value: _fmtNum(cmds), color: const Color(0xFF9B59B6), sub: '+$cmdGrowth%'),
-                _Stat(icon: Icons.people_rounded, label: 'Utilisateurs', value: _fmtNum(users), color: const Color(0xFFE67E22), sub: null),
-              ],
-            ),
+
+            // Ligne 1 — Messages + Commandes (grandes cards)
+            Row(children: [
+              Expanded(child: _BigStat(
+                icon: Icons.chat_bubble_rounded,
+                label: 'Messages', value: _fmtNum(msgs),
+                color: _g,
+                growth: msgGrowth,
+                sub: 'reçus',
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: _BigStat(
+                icon: Icons.terminal_rounded,
+                label: 'Commandes', value: _fmtNum(cmds),
+                color: _purple,
+                growth: cmdGrowth,
+                sub: 'exécutées',
+              )),
+            ]),
             const SizedBox(height: 10),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.55,
-              children: [
-                _Stat(icon: Icons.timer_rounded, label: 'Uptime', value: uptimeStr, color: const Color(0xFF3498DB), sub: null),
-                _Stat(icon: Icons.memory_rounded, label: 'RAM', value: ram > 0 ? '${ram}MB' : '--', color: const Color(0xFFE74C3C), sub: ramTotal > 0 ? '/${ramTotal}MB' : null),
-                _Stat(icon: Icons.phone_android_rounded, label: 'Sessions', value: connected ? '1' : '0', color: const Color(0xFF1ABC9C), sub: connected ? 'Active' : 'Inactive'),
-                _Stat(icon: Icons.verified_rounded, label: 'Version', value: 'v2.0', color: const Color(0xFFF39C12), sub: 'Stable'),
-              ],
+
+            // Ligne 2 — Groupes + Utilisateurs
+            Row(children: [
+              Expanded(child: _SmallStat(
+                icon: Icons.groups_rounded, label: 'Groupes',
+                value: _fmtNum(groups), color: _teal)),
+              const SizedBox(width: 10),
+              Expanded(child: _SmallStat(
+                icon: Icons.people_rounded, label: 'Utilisateurs',
+                value: _fmtNum(users), color: _orange)),
+              const SizedBox(width: 10),
+              Expanded(child: _SmallStat(
+                icon: Icons.phone_android_rounded, label: 'Sessions',
+                value: connected ? '1' : '0', color: _blue)),
+            ]),
+            const SizedBox(height: 20),
+
+            // ── Section : Ressources serveur ──────────────────────────────
+            _SectionLabel(label: 'Ressources serveur'),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _card,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _border),
+              ),
+              child: Column(children: [
+                // Uptime
+                _ResourceRow(
+                  icon: Icons.timer_rounded,
+                  label: 'Uptime',
+                  value: _fmtUptime(uptime),
+                  color: _teal,
+                ),
+                const SizedBox(height: 14),
+                // RAM barre
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    const Icon(Icons.memory_rounded, size: 15, color: _muted),
+                    const SizedBox(width: 6),
+                    const Text('RAM', style: TextStyle(color: _muted, fontSize: 12)),
+                    const Spacer(),
+                    Text(ram > 0 ? '$ram MB / $ramTotal MB' : '--',
+                        style: const TextStyle(color: _ink, fontSize: 12, fontWeight: FontWeight.w700)),
+                  ]),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: ramPct,
+                      backgroundColor: _border,
+                      valueColor: AlwaysStoppedAnimation(
+                          ramPct > 0.8 ? _red : ramPct > 0.6 ? _orange : _blue),
+                      minHeight: 7,
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 14),
+                _ResourceRow(
+                  icon: Icons.verified_rounded,
+                  label: 'Version',
+                  value: 'v2.0 — Stable',
+                  color: _g,
+                ),
+              ]),
             ),
             const SizedBox(height: 20),
 
-            // Top commands section
-            if (_analytics != null) ...[
-              const Text('Top Commandes', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _muted, letterSpacing: 0.5)),
+            // ── Top commandes ─────────────────────────────────────────────
+            if (topCmds.isNotEmpty) ...[
+              _SectionLabel(label: 'Top Commandes', trailing: '5 premières'),
               const SizedBox(height: 10),
-              ...((_analytics!['topCommands'] as List? ?? []).cast<Map<String, dynamic>>().take(5).toList().asMap().entries.map((e) {
-                final cmd   = e.value['command'] as String? ?? '';
-                final count = e.value['count'] as int? ?? 0;
-                final max   = ((_analytics!['topCommands'] as List? ?? []).isNotEmpty
-                  ? ((_analytics!['topCommands'] as List).first['count'] as int? ?? 1)
-                  : 1);
-                final pct = count / max;
-                final colors = [_g, const Color(0xFF3498DB), const Color(0xFF9B59B6), const Color(0xFFE67E22), const Color(0xFFE74C3C)];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
-                    child: Row(children: [
-                      Container(
-                        width: 30, height: 30,
-                        decoration: BoxDecoration(color: colors[e.key % colors.length].withOpacity(.15), borderRadius: BorderRadius.circular(8)),
-                        child: Center(child: Text('${e.key + 1}', style: TextStyle(color: colors[e.key % colors.length], fontWeight: FontWeight.w800, fontSize: 12))),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(cmd, style: TextStyle(color: colors[e.key % colors.length], fontSize: 13, fontWeight: FontWeight.w700, fontFamily: 'monospace')),
-                        const SizedBox(height: 4),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: pct.clamp(0.0, 1.0),
-                            backgroundColor: _border,
-                            valueColor: AlwaysStoppedAnimation(colors[e.key % colors.length]),
-                            minHeight: 5,
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _card,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _border),
+                ),
+                child: Column(
+                  children: topCmds.take(5).toList().asMap().entries.map((e) {
+                    final cmd   = e.value['command'] as String? ?? '';
+                    final count = e.value['count'] as int? ?? 0;
+                    final pct   = count / maxCount;
+                    const colors = [_g, _blue, _purple, _orange, _red];
+                    final color  = colors[e.key % colors.length];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(children: [
+                          Container(
+                            width: 20, height: 20,
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(child: Text('${e.key + 1}',
+                                style: TextStyle(color: color, fontSize: 9,
+                                    fontWeight: FontWeight.w900))),
                           ),
-                        ),
-                      ])),
-                      const SizedBox(width: 10),
-                      Text('$count', style: const TextStyle(color: _ink, fontSize: 12, fontWeight: FontWeight.w700)),
-                    ]),
-                  ),
-                );
-              })),
-              const SizedBox(height: 10),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(cmd,
+                              style: TextStyle(fontSize: 13, color: color,
+                                  fontWeight: FontWeight.w700, fontFamily: 'monospace'))),
+                          Text(_fmtNum(count),
+                              style: const TextStyle(fontSize: 12, color: _ink,
+                                  fontWeight: FontWeight.w800)),
+                        ]),
+                        const SizedBox(height: 6),
+                        Row(children: [
+                          const SizedBox(width: 28),
+                          Expanded(child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: LinearProgressIndicator(
+                              value: pct.clamp(0.0, 1.0),
+                              backgroundColor: color.withOpacity(.08),
+                              valueColor: AlwaysStoppedAnimation(color),
+                              minHeight: 5,
+                            ),
+                          )),
+                        ]),
+                      ]),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 20),
             ],
 
-            // Quick actions
-            const Text('Actions rapides', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _muted, letterSpacing: 0.5)),
+            // ── Actions rapides ───────────────────────────────────────────
+            _SectionLabel(label: 'Actions rapides'),
             const SizedBox(height: 10),
-            _Action(
-              icon: Icons.qr_code_rounded,
-              title: 'Scanner un QR',
-              desc: connected ? 'Bot déjà connecté' : 'Lier un compte WhatsApp',
-              disabled: connected,
+            _QuickAction(
+              icon: Icons.qr_code_2_rounded,
+              title: connected ? 'Bot déjà connecté' : 'Scanner un QR code',
+              desc:  connected ? 'Compte lié • +$phone' : 'Lier un compte WhatsApp',
               color: _g,
+              disabled: connected,
             ),
             const SizedBox(height: 8),
-            _Action(
-              icon: Icons.receipt_long_rounded,
-              title: 'Voir les logs',
-              desc: 'Historique des messages et commandes',
-              color: const Color(0xFF3498DB),
-            ),
-            const SizedBox(height: 8),
-            _Action(
+            _QuickAction(
               icon: Icons.bar_chart_rounded,
               title: 'Analytics',
-              desc: 'Performance et statistiques du bot',
-              color: const Color(0xFF9B59B6),
+              desc:  'Performance et statistiques détaillées',
+              color: _purple,
             ),
+            const SizedBox(height: 8),
+            _QuickAction(
+              icon: Icons.receipt_long_rounded,
+              title: 'Logs d\'activité',
+              desc:  'Historique des messages et commandes',
+              color: _blue,
+            ),
+
+            // ── Offline banner ────────────────────────────────────────────
+            if (!connected && !_loading) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _red.withOpacity(.06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _red.withOpacity(.2)),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.info_outline_rounded, color: _red, size: 18),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Text(
+                    'Le bot est hors ligne. Envoie .ping sur WhatsApp ou redémarre le serveur Node.js.',
+                    style: TextStyle(color: _red, fontSize: 12),
+                  )),
+                ]),
+              ),
+            ],
           ],
         ),
       ),
@@ -250,55 +464,157 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-class _Stat extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-  final String? sub;
-  const _Stat({required this.icon, required this.label, required this.value, required this.color, required this.sub});
+// ─────────────────────────────────────────────────────────────────────────────
+//  Widgets
+// ─────────────────────────────────────────────────────────────────────────────
 
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  final String? trailing;
+  const _SectionLabel({required this.label, this.trailing});
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Text(label, style: const TextStyle(
+        fontSize: 12, fontWeight: FontWeight.w800, color: _muted, letterSpacing: 0.6)),
+    const Spacer(),
+    if (trailing != null)
+      Text(trailing!, style: const TextStyle(fontSize: 10, color: _muted)),
+  ]);
+}
+
+class _MiniTag extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _MiniTag({required this.label, required this.color});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
     decoration: BoxDecoration(
-      color: _card,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: color.withOpacity(.25)),
-      gradient: LinearGradient(
-        colors: [_card, color.withOpacity(.05)],
-        begin: Alignment.topLeft, end: Alignment.bottomRight,
-      ),
+      color: color.withOpacity(.1),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: color.withOpacity(.2)),
     ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Container(
-          width: 32, height: 32,
-          decoration: BoxDecoration(color: color.withOpacity(.15), borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, size: 16, color: color),
-        ),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: _ink)),
-            if (sub != null) ...[
-              const SizedBox(width: 4),
-              Text(sub!, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w700)),
-            ],
-          ]),
-          Text(label, style: const TextStyle(fontSize: 10.5, color: _muted, fontWeight: FontWeight.w500)),
-        ]),
-      ],
-    ),
+    child: Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
   );
 }
 
-class _Action extends StatelessWidget {
+class _BigStat extends StatelessWidget {
   final IconData icon;
-  final String title;
-  final String desc;
-  final bool disabled;
+  final String label, value, sub;
   final Color color;
-  const _Action({required this.icon, required this.title, required this.desc, this.disabled = false, required this.color});
+  final double growth;
+  const _BigStat({
+    required this.icon, required this.label, required this.value,
+    required this.color, required this.growth, required this.sub,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: _card,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: color.withOpacity(.2)),
+      gradient: LinearGradient(
+        colors: [_card, color.withOpacity(.04)],
+        begin: Alignment.topLeft, end: Alignment.bottomRight,
+      ),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Container(
+          width: 34, height: 34,
+          decoration: BoxDecoration(
+            color: color.withOpacity(.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 17, color: color),
+        ),
+        const Spacer(),
+        if (growth != 0)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: BoxDecoration(
+              color: (growth > 0 ? _g : _red).withOpacity(.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '${growth > 0 ? '+' : ''}${growth.toStringAsFixed(1)}%',
+              style: TextStyle(
+                  fontSize: 10, fontWeight: FontWeight.w700,
+                  color: growth > 0 ? _g : _red),
+            ),
+          ),
+      ]),
+      const SizedBox(height: 12),
+      Text(value, style: TextStyle(
+          fontSize: 26, fontWeight: FontWeight.w900,
+          color: color, letterSpacing: -0.5)),
+      const SizedBox(height: 2),
+      Text('$label $sub', style: const TextStyle(fontSize: 11, color: _muted)),
+    ]),
+  );
+}
+
+class _SmallStat extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  final Color color;
+  const _SmallStat({required this.icon, required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: _card,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: color.withOpacity(.18)),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, size: 17, color: color),
+      const SizedBox(height: 8),
+      Text(value, style: TextStyle(
+          fontSize: 20, fontWeight: FontWeight.w900, color: _ink)),
+      const SizedBox(height: 2),
+      Text(label, style: const TextStyle(fontSize: 10.5, color: _muted)),
+    ]),
+  );
+}
+
+class _ResourceRow extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  final Color color;
+  const _ResourceRow({required this.icon, required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Icon(icon, size: 15, color: _muted),
+    const SizedBox(width: 8),
+    Text(label, style: const TextStyle(color: _muted, fontSize: 12)),
+    const Spacer(),
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(.2)),
+      ),
+      child: Text(value, style: TextStyle(
+          color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+    ),
+  ]);
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String title, desc;
+  final Color color;
+  final bool disabled;
+  const _QuickAction({
+    required this.icon, required this.title, required this.desc,
+    required this.color, this.disabled = false,
+  });
 
   @override
   Widget build(BuildContext context) => Opacity(
@@ -308,18 +624,32 @@ class _Action extends StatelessWidget {
       decoration: BoxDecoration(
         color: _card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(.2)),
+        border: Border.all(color: color.withOpacity(.18)),
       ),
       child: Row(children: [
-        Container(width: 40, height: 40,
-          decoration: BoxDecoration(color: color.withOpacity(.12), borderRadius: BorderRadius.circular(12)),
-          child: Icon(icon, size: 20, color: color)),
+        Container(
+          width: 42, height: 42,
+          decoration: BoxDecoration(
+            color: color.withOpacity(.1),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(icon, size: 20, color: color),
+        ),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: _ink)),
+          Text(title, style: const TextStyle(
+              fontSize: 13.5, fontWeight: FontWeight.w700, color: _ink)),
+          const SizedBox(height: 2),
           Text(desc, style: const TextStyle(fontSize: 12, color: _muted)),
         ])),
-        Icon(Icons.chevron_right_rounded, color: color.withOpacity(.5), size: 20),
+        Container(
+          width: 28, height: 28,
+          decoration: BoxDecoration(
+            color: color.withOpacity(.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(Icons.chevron_right_rounded, color: color, size: 18),
+        ),
       ]),
     ),
   );
