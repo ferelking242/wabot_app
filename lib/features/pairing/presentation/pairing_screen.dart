@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -12,55 +13,91 @@ import '../../../presentation/providers/auth_providers.dart';
 import '../providers/pairing_provider.dart';
 import '../../auth/presentation/splash_screen.dart' show WabotLogoWidget;
 
-const _g     = Color(0xFF25D366);
-const _gd    = Color(0xFF128C7E);
-const _bg    = Color(0xFF0A0C0F);
-const _card  = Color(0xFF111418);
-const _card2 = Color(0xFF0D0F12);
-const _bord  = Color(0xFF1C2128);
-const _ink   = Color(0xFFF2F3F5);
+const _g    = Color(0xFF25D366);
+const _gd   = Color(0xFF128C7E);
+const _bg   = Color(0xFF0A0C0F);
+const _ink  = Color(0xFFF2F3F5);
 const _muted = Color(0xFF8A9199);
 
-// ── Gradient border helper ──────────────────────────────────────────────────
-
-class _GradientBorderBox extends StatelessWidget {
+// Glass card helper
+class _Glass extends StatelessWidget {
   final Widget child;
   final double radius;
-  final List<Color> gradientColors;
-  final EdgeInsets? padding;
+  final EdgeInsets padding;
+  final double opacity;
+  final Color? borderColor;
 
-  const _GradientBorderBox({
+  const _Glass({
     required this.child,
     this.radius = 20,
-    this.gradientColors = const [Color(0xFF25D366), Color(0xFF1C2128), Color(0xFF1C2128)],
-    this.padding,
+    this.padding = const EdgeInsets.all(20),
+    this.opacity = 0.045,
+    this.borderColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(1.2),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: gradientColors,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(opacity),
+            borderRadius: BorderRadius.circular(radius),
+            border: Border.all(
+              color: borderColor ?? Colors.white.withOpacity(0.07),
+              width: 1,
+            ),
+          ),
+          child: child,
         ),
-        borderRadius: BorderRadius.circular(radius),
-      ),
-      child: Container(
-        padding: padding,
-        decoration: BoxDecoration(
-          color: _card,
-          borderRadius: BorderRadius.circular(radius - 1.2),
-        ),
-        child: child,
       ),
     );
   }
 }
 
-// ── Main screen ────────────────────────────────────────────────────────────
+// Hex background painter (unchanged)
+class _HexPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF1C2128).withOpacity(0.35)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8;
+
+    const r = 32.0;
+    final h = r * math.sqrt(3);
+    final cols = (size.width / (h) + 2).ceil();
+    final rows = (size.height / (r * 1.5) + 2).ceil();
+
+    for (int row = 0; row < rows; row++) {
+      for (int col = 0; col < cols; col++) {
+        final x = col * h + (row.isOdd ? h / 2 : 0);
+        final y = row * r * 1.5;
+        _drawHex(canvas, paint, Offset(x, y), r);
+      }
+    }
+  }
+
+  void _drawHex(Canvas canvas, Paint paint, Offset center, double r) {
+    final path = Path();
+    for (int i = 0; i < 6; i++) {
+      final angle = math.pi / 180 * (60 * i - 30);
+      final x = center.dx + r * math.cos(angle);
+      final y = center.dy + r * math.sin(angle);
+      if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
+    }
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_HexPainter old) => false;
+}
+
+// ── Main screen ─────────────────────────────────────────────────────────────
 
 class PairingScreen extends ConsumerStatefulWidget {
   const PairingScreen({super.key});
@@ -111,13 +148,30 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
     return Scaffold(
       backgroundColor: _bg,
       body: Stack(children: [
+        // Hex background
         Positioned.fill(child: CustomPaint(painter: _HexPainter())),
-        // Top gradient accent
+        // Top accent line
         Positioned(top: 0, left: 0, right: 0,
           child: Container(height: 3,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [_gd, _g, Color(0xFF34E07E)])))),
+        // Radial green glow top-center
+        Positioned(
+          top: -80, left: 0, right: 0,
+          child: Container(
+            height: 260,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                colors: [
+                  _g.withOpacity(0.10),
+                  Colors.transparent,
+                ],
+                radius: 0.7,
+              ),
+            ),
+          ),
+        ),
         SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -125,7 +179,6 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 460),
                 child: Column(children: [
-                  // Logo
                   const WabotLogoWidget(size: 64, radius: 18, iconSize: 30)
                     .animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
                   const SizedBox(height: 14),
@@ -142,17 +195,14 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
                   _PlatformBadge().animate(delay: 160.ms).fadeIn(),
                   const SizedBox(height: 28),
 
-                  // ── Tab bar ──────────────────────────────────────────
-                  _GradientBorderBox(
+                  // ── Tab bar (glass, no heavy border) ────────────────
+                  _Glass(
                     radius: 18,
-                    gradientColors: const [Color(0xFF25D366), Color(0xFF1C2128), Color(0xFF1E2530)],
-                    child: Container(
-                      height: 58,
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: _card2,
-                        borderRadius: BorderRadius.circular(17),
-                      ),
+                    padding: const EdgeInsets.all(5),
+                    opacity: 0.06,
+                    borderColor: _g.withOpacity(0.18),
+                    child: SizedBox(
+                      height: 50,
                       child: TabBar(
                         controller: _tab,
                         dividerColor: Colors.transparent,
@@ -160,11 +210,11 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
                         overlayColor: WidgetStateProperty.all(Colors.transparent),
                         indicator: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [_g.withOpacity(0.18), _g.withOpacity(0.08)]),
+                            colors: [_g.withOpacity(0.22), _g.withOpacity(0.08)]),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: _g.withOpacity(0.45), width: 1),
+                          border: Border.all(color: _g.withOpacity(0.4), width: 1),
                           boxShadow: [
-                            BoxShadow(color: _g.withOpacity(0.12), blurRadius: 14),
+                            BoxShadow(color: _g.withOpacity(0.15), blurRadius: 12),
                           ],
                         ),
                         labelColor: _g,
@@ -202,6 +252,14 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
                           ctrl: _phoneCtrl, state: st),
                   ).animate(delay: 250.ms).fadeIn(),
 
+                  // ── Bot starting indicator ───────────────────────────
+                  if (st.status == PairingStatus.botStarting &&
+                      st.startingMessage != null) ...[
+                    const SizedBox(height: 14),
+                    _StartingBanner(message: st.startingMessage!)
+                      .animate().fadeIn(),
+                  ],
+
                   // ── Error banner ─────────────────────────────────────
                   if (st.error != null) ...[
                     const SizedBox(height: 14),
@@ -221,7 +279,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
                         ref.read(authProvider.notifier).signOut(),
                     child: Text('Changer de serveur',
                       style: TextStyle(
-                        color: _muted.withOpacity(0.55), fontSize: 12)),
+                        color: _muted.withOpacity(0.5), fontSize: 12)),
                   ),
                 ]),
               ),
@@ -233,7 +291,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
   }
 }
 
-// ── QR tab ─────────────────────────────────────────────────────────────────
+// ── QR tab ───────────────────────────────────────────────────────────────────
 
 class _QrTab extends StatelessWidget {
   final PairingState state;
@@ -242,28 +300,30 @@ class _QrTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.status == PairingStatus.connected) return const _SuccessView();
-    if (state.qrString == null) {
-      return const _LoadingView(message: 'Démarrage du bot…');
+    if (state.status == PairingStatus.botStarting || state.qrString == null) {
+      return _LoadingView(
+        message: state.startingMessage ?? 'Démarrage du bot…',
+      );
     }
 
     return Column(children: [
-      // QR with gradient border + glow
+      // QR with green glow, no heavy box
       Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
-            BoxShadow(color: _g.withOpacity(0.28), blurRadius: 36, spreadRadius: 2),
-            BoxShadow(color: Colors.black.withOpacity(0.45), blurRadius: 18),
+            BoxShadow(color: _g.withOpacity(0.30), blurRadius: 40, spreadRadius: 2),
+            BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20),
           ],
         ),
-        child: _GradientBorderBox(
-          radius: 24,
-          gradientColors: [_g, _g.withOpacity(0.3), _gd],
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(23),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: _g.withOpacity(0.5), width: 2),
             ),
             child: QrImageView(
               data: state.qrString!,
@@ -288,7 +348,7 @@ class _QrTab extends StatelessWidget {
   }
 }
 
-// ── Code tab ───────────────────────────────────────────────────────────────
+// ── Code tab ─────────────────────────────────────────────────────────────────
 
 class _CodeTab extends ConsumerWidget {
   final TextEditingController ctrl;
@@ -300,17 +360,23 @@ class _CodeTab extends ConsumerWidget {
     if (state.status == PairingStatus.connected) return const _SuccessView();
     if (state.pairingCode != null)
       return _CodeDisplay(code: state.pairingCode!, state: state);
+    if (state.status == PairingStatus.botStarting)
+      return _LoadingView(
+        message: state.startingMessage ?? 'Démarrage du bot…',
+        color: _g,
+      );
 
-    return _GradientBorderBox(
+    return _Glass(
       radius: 22,
-      gradientColors: [_g.withOpacity(0.35), _bord, _bord],
       padding: const EdgeInsets.all(22),
+      opacity: 0.055,
+      borderColor: _g.withOpacity(0.20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Label
         Row(children: [
           const Icon(Icons.phone_android_rounded, size: 14, color: _muted),
           const SizedBox(width: 6),
-          Text('Numéro WhatsApp',
+          const Text('Numéro WhatsApp',
             style: TextStyle(
               color: _muted, fontSize: 11.5,
               fontWeight: FontWeight.w600, letterSpacing: 0.6)),
@@ -333,7 +399,7 @@ class _CodeTab extends ConsumerWidget {
               color: _muted.withOpacity(0.35),
               fontWeight: FontWeight.w400, letterSpacing: 0),
             filled: true,
-            fillColor: _card2,
+            fillColor: Colors.white.withOpacity(0.04),
             prefixIcon: Container(
               margin: const EdgeInsets.fromLTRB(14, 10, 0, 10),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -348,10 +414,10 @@ class _CodeTab extends ConsumerWidget {
             prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(13),
-              borderSide: const BorderSide(color: _bord)),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.10))),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(13),
-              borderSide: const BorderSide(color: _bord)),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.10))),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(13),
               borderSide: const BorderSide(color: _g, width: 1.5)),
@@ -366,7 +432,7 @@ class _CodeTab extends ConsumerWidget {
 
         const SizedBox(height: 20),
 
-        // Action button with gradient
+        // Action button
         GestureDetector(
           onTap: state.status == PairingStatus.loading ? null : () => _submit(ref),
           child: AnimatedContainer(
@@ -425,7 +491,7 @@ class _CodeTab extends ConsumerWidget {
   }
 }
 
-// ── Code display ───────────────────────────────────────────────────────────
+// ── Code display ─────────────────────────────────────────────────────────────
 
 class _CodeDisplay extends StatelessWidget {
   final String code;
@@ -435,9 +501,10 @@ class _CodeDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final parts = code.split('-');
-    return _GradientBorderBox(
+    return _Glass(
       radius: 22,
-      gradientColors: [_g.withOpacity(0.5), _g.withOpacity(0.1), _bord],
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+      borderColor: _g.withOpacity(0.30),
       child: GestureDetector(
         onTap: () {
           Clipboard.setData(ClipboardData(text: code));
@@ -451,264 +518,230 @@ class _CodeDisplay extends StatelessWidget {
               behavior: SnackBarBehavior.floating,
             ));
         },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-          decoration: BoxDecoration(
-            color: _card,
-            borderRadius: BorderRadius.circular(21),
-          ),
-          child: Column(children: [
-            Text('Code de jumelage',
-              style: TextStyle(
-                color: _muted, fontSize: 11.5,
-                fontWeight: FontWeight.w600, letterSpacing: 0.6)),
-            const SizedBox(height: 18),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                for (int i = 0; i < parts.length; i++) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _g.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _g.withOpacity(0.25)),
-                    ),
-                    child: Text(parts[i], style: const TextStyle(
-                      color: _g, fontSize: 30,
-                      fontWeight: FontWeight.w900,
-                      fontFamily: 'monospace', letterSpacing: 3)),
-                  ),
-                  if (i < parts.length - 1)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: Text('—', style: TextStyle(
-                        color: _muted.withOpacity(0.4),
-                        fontSize: 24, fontWeight: FontWeight.w200))),
-                ],
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.copy_rounded, size: 12,
-                color: _muted.withOpacity(0.45)),
-              const SizedBox(width: 5),
-              Text('Appuyer pour copier',
-                style: TextStyle(
-                  color: _muted.withOpacity(0.5), fontSize: 11.5)),
-            ]),
-            if (state.status == PairingStatus.loading ||
-                state.status == PairingStatus.waitingCode) ...[
-              const SizedBox(height: 18),
-              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                SizedBox(
-                  width: 13, height: 13,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2, color: _g.withOpacity(0.7))),
-                const SizedBox(width: 8),
-                Text('En attente de connexion WhatsApp…',
-                  style: TextStyle(color: _muted, fontSize: 12)),
-              ]).animate(onPlay: (c) => c.repeat())
-                .shimmer(color: _g.withOpacity(0.2)),
-            ],
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Countdown bar ──────────────────────────────────────────────────────────
-
-class _CountdownBar extends StatefulWidget {
-  final int expiresIn;
-  const _CountdownBar({required this.expiresIn});
-  @override State<_CountdownBar> createState() => _CState();
-}
-
-class _CState extends State<_CountdownBar> {
-  late int _rem;
-  Timer? _t;
-
-  @override
-  void initState() {
-    super.initState();
-    _rem = widget.expiresIn;
-    _t = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _rem = (_rem - 1).clamp(0, 60));
-    });
-  }
-
-  @override
-  void didUpdateWidget(_CountdownBar old) {
-    super.didUpdateWidget(old);
-    if (old.expiresIn != widget.expiresIn) setState(() => _rem = widget.expiresIn);
-  }
-
-  @override void dispose() { _t?.cancel(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    final pct = (_rem / 60).clamp(0.0, 1.0);
-    final color = pct > 0.5
-      ? _g
-      : pct > 0.25
-        ? const Color(0xFFFAA61A)
-        : const Color(0xFFED4245);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: _card.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _bord),
-      ),
-      child: Column(children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: pct, minHeight: 4,
-            backgroundColor: _bord, color: color)),
-        const SizedBox(height: 7),
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.refresh_rounded, size: 11,
-            color: _muted.withOpacity(0.5)),
-          const SizedBox(width: 4),
-          Text('Expire dans ${_rem}s · Se rafraîchit automatiquement',
-            style: TextStyle(color: _muted.withOpacity(0.6), fontSize: 11)),
-        ]),
-      ]),
-    );
-  }
-}
-
-// ── Success ────────────────────────────────────────────────────────────────
-
-class _SuccessView extends StatelessWidget {
-  const _SuccessView();
-  @override
-  Widget build(BuildContext context) {
-    return _GradientBorderBox(
-      radius: 22,
-      gradientColors: [_g.withOpacity(0.5), _g.withOpacity(0.1), _bord],
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
-        decoration: BoxDecoration(
-          color: _card, borderRadius: BorderRadius.circular(21),
-        ),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(
-            width: 80, height: 80,
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                colors: [_g.withOpacity(0.2), _g.withOpacity(0.05)]),
-              shape: BoxShape.circle,
-              border: Border.all(color: _g.withOpacity(0.5), width: 2)),
-            child: const Icon(Icons.check_rounded, color: _g, size: 44))
-            .animate().scale(duration: 500.ms, curve: Curves.elasticOut),
-          const SizedBox(height: 18),
-          const Text('WhatsApp Connecté !',
+        child: Column(children: [
+          const Text('Code de jumelage',
             style: TextStyle(
-              color: _g, fontSize: 19, fontWeight: FontWeight.w800))
-            .animate(delay: 200.ms).fadeIn(),
-          const SizedBox(height: 6),
-          Text('Redirection vers le dashboard…',
-            style: TextStyle(color: _muted, fontSize: 13))
-            .animate(delay: 300.ms).fadeIn(),
+              color: _muted, fontSize: 11.5,
+              fontWeight: FontWeight.w600, letterSpacing: 0.6)),
+          const SizedBox(height: 18),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (int i = 0; i < parts.length; i++)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _g.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _g.withOpacity(0.25)),
+                  ),
+                  child: Text(parts[i], style: const TextStyle(
+                    color: _g, fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'monospace', letterSpacing: 3)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.copy_rounded, size: 12,
+              color: _muted.withOpacity(0.45)),
+            const SizedBox(width: 5),
+            Text('Appuyer pour copier',
+              style: TextStyle(
+                color: _muted.withOpacity(0.5), fontSize: 11.5)),
+          ]),
+          if (state.status == PairingStatus.loading ||
+              state.status == PairingStatus.waitingCode) ...[
+            const SizedBox(height: 18),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              SizedBox(
+                width: 13, height: 13,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2, color: _g.withOpacity(0.7))),
+              const SizedBox(width: 8),
+              Text('En attente de connexion WhatsApp…',
+                style: TextStyle(color: _muted, fontSize: 12)),
+            ]).animate(onPlay: (c) => c.repeat())
+              .shimmer(color: _g.withOpacity(0.2)),
+          ],
         ]),
       ),
     );
   }
 }
 
-// ── Loading ────────────────────────────────────────────────────────────────
+// ── Bot starting banner ───────────────────────────────────────────────────────
 
-class _LoadingView extends StatelessWidget {
+class _StartingBanner extends StatelessWidget {
   final String message;
-  const _LoadingView({required this.message});
+  const _StartingBanner({required this.message});
+
   @override
-  Widget build(BuildContext context) => _GradientBorderBox(
-    radius: 22,
-    gradientColors: [_bord, _bord, _bord],
-    child: Container(
-      height: 180,
-      decoration: BoxDecoration(
-        color: _card, borderRadius: BorderRadius.circular(21)),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+  Widget build(BuildContext context) {
+    return _Glass(
+      radius: 14,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      opacity: 0.05,
+      borderColor: _g.withOpacity(0.20),
+      child: Row(children: [
         SizedBox(
-          width: 28, height: 28,
+          width: 14, height: 14,
           child: CircularProgressIndicator(
-            color: _g, strokeWidth: 2.5,
-            backgroundColor: _g.withOpacity(0.1))),
-        const SizedBox(height: 16),
-        Text(message,
-          style: const TextStyle(color: _muted, fontSize: 13)),
+            strokeWidth: 2, color: _g.withOpacity(0.8))),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(message,
+            style: const TextStyle(color: _g, fontSize: 13))),
       ]),
-    ),
-  );
+    );
+  }
 }
 
-// ── Error banner ───────────────────────────────────────────────────────────
+// ── Error banner ──────────────────────────────────────────────────────────────
 
 class _ErrorBanner extends StatelessWidget {
   final String message;
   const _ErrorBanner({required this.message});
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    decoration: BoxDecoration(
-      color: const Color(0xFFED4245).withOpacity(0.07),
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(
-        color: const Color(0xFFED4245).withOpacity(0.25))),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Padding(
-        padding: EdgeInsets.only(top: 1),
-        child: Icon(Icons.warning_amber_rounded,
-          color: Color(0xFFED4245), size: 16)),
-      const SizedBox(width: 10),
-      Expanded(child: Text(message,
-        style: const TextStyle(
-          color: Color(0xFFED4245), fontSize: 12.5, height: 1.4))),
-    ]));
-}
 
-// ── Platform badge ─────────────────────────────────────────────────────────
-
-class _PlatformBadge extends StatelessWidget {
-  const _PlatformBadge();
   @override
   Widget build(BuildContext context) {
-    final local = PlatformService.runsLocalBot;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-      decoration: BoxDecoration(
-        color: _g.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _g.withOpacity(0.2))),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          width: 6, height: 6,
-          margin: const EdgeInsets.only(right: 6),
-          decoration: BoxDecoration(
-            color: _g, shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: _g.withOpacity(0.6), blurRadius: 6)]),
-        ),
-        Icon(local ? Icons.smartphone_rounded : Icons.cloud_rounded,
-          size: 12, color: _g.withOpacity(0.8)),
-        const SizedBox(width: 5),
-        Text(
-          local
-            ? 'Bot local · ${PlatformService.platformLabel}'
-            : 'Aivos Cloud',
-          style: TextStyle(
-            color: _g.withOpacity(0.85), fontSize: 11.5,
-            fontWeight: FontWeight.w600)),
-      ]));
+    return _Glass(
+      radius: 14,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      opacity: 0.05,
+      borderColor: const Color(0xFFE53935).withOpacity(0.40),
+      child: Row(children: [
+        const Icon(Icons.warning_amber_rounded,
+          color: Color(0xFFEF5350), size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(message,
+            style: const TextStyle(color: Color(0xFFEF9A9A), fontSize: 13))),
+      ]),
+    );
   }
 }
 
-// ── Instructions ───────────────────────────────────────────────────────────
+// ── Loading view ──────────────────────────────────────────────────────────────
+
+class _LoadingView extends StatelessWidget {
+  final String message;
+  final Color color;
+  const _LoadingView({required this.message, this.color = _muted});
+
+  @override
+  Widget build(BuildContext context) {
+    return _Glass(
+      radius: 22,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        CircularProgressIndicator(color: _g, strokeWidth: 2.5)
+          .animate(onPlay: (c) => c.repeat())
+          .rotate(duration: 800.ms),
+        const SizedBox(height: 16),
+        Text(message, style: TextStyle(color: color, fontSize: 13),
+          textAlign: TextAlign.center),
+      ]),
+    );
+  }
+}
+
+// ── Success view ──────────────────────────────────────────────────────────────
+
+class _SuccessView extends StatelessWidget {
+  const _SuccessView();
+
+  @override
+  Widget build(BuildContext context) {
+    return _Glass(
+      radius: 22,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      borderColor: _g.withOpacity(0.35),
+      child: Column(children: [
+        Container(
+          width: 64, height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _g.withOpacity(0.12),
+            border: Border.all(color: _g.withOpacity(0.4), width: 1.5),
+          ),
+          child: const Icon(Icons.check_rounded, color: _g, size: 34),
+        ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+        const SizedBox(height: 16),
+        const Text('Connecté !',
+          style: TextStyle(color: _g, fontSize: 18, fontWeight: FontWeight.w800))
+          .animate(delay: 150.ms).fadeIn().slideY(begin: 0.2, end: 0),
+        const SizedBox(height: 6),
+        Text('WhatsApp lié avec succès',
+          style: TextStyle(color: _muted, fontSize: 13))
+          .animate(delay: 200.ms).fadeIn(),
+      ]),
+    );
+  }
+}
+
+// ── Countdown bar ─────────────────────────────────────────────────────────────
+
+class _CountdownBar extends StatelessWidget {
+  final int expiresIn;
+  const _CountdownBar({required this.expiresIn});
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = (expiresIn / 60).clamp(0.0, 1.0);
+    final color = expiresIn > 20 ? _g : (expiresIn > 10 ? Colors.orange : Colors.red);
+    return Column(children: [
+      ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: LinearProgressIndicator(
+          value: ratio,
+          minHeight: 3,
+          backgroundColor: Colors.white.withOpacity(0.06),
+          valueColor: AlwaysStoppedAnimation(color),
+        ),
+      ),
+      const SizedBox(height: 6),
+      Text('QR expire dans ${expiresIn}s',
+        style: TextStyle(color: _muted.withOpacity(0.5), fontSize: 11.5)),
+    ]);
+  }
+}
+
+// ── Platform badge ────────────────────────────────────────────────────────────
+
+class _PlatformBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.10)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 6, height: 6,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle, color: _g),
+        ),
+        const SizedBox(width: 6),
+        Icon(PlatformService.isWeb ? Icons.language_rounded
+          : Icons.phone_android_rounded,
+          size: 13, color: _muted),
+        const SizedBox(width: 5),
+        Text('Bot local · ${PlatformService.platformLabel}',
+          style: const TextStyle(color: _muted, fontSize: 12)),
+      ]),
+    );
+  }
+}
+
+// ── Instructions ─────────────────────────────────────────────────────────────
 
 class _Instructions extends StatelessWidget {
   final bool isQr;
@@ -717,98 +750,65 @@ class _Instructions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final steps = isQr
-      ? ['Ouvrez WhatsApp sur votre téléphone',
-         'Appuyez sur les 3 points → Appareils liés',
-         'Appuyez sur "Lier un appareil"',
-         'Scannez le QR code ci-dessus']
-      : ['Ouvrez WhatsApp sur votre téléphone',
-         'Appuyez sur les 3 points → Appareils liés',
-         '"Lier un appareil" → continuer sans QR',
-         'Entrez le code à 8 chiffres affiché'];
+      ? const [
+          'Ouvrez WhatsApp sur votre téléphone',
+          'Appuyez sur les 3 points → Appareils liés',
+          'Appuyez sur "Lier un appareil"',
+          'Scannez le QR Code affiché',
+        ]
+      : const [
+          'Ouvrez WhatsApp sur votre téléphone',
+          'Appuyez sur les 3 points → Appareils liés',
+          '"Lier un appareil" → continuer sans QR',
+          'Entrez le code à 8 chiffres affiché',
+        ];
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      decoration: BoxDecoration(
-        color: _g.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _g.withOpacity(0.1))),
+    return _Glass(
+      radius: 18,
+      padding: const EdgeInsets.all(18),
+      opacity: 0.04,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(
-            width: 3.5, height: 14,
+            width: 3, height: 16,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [_g, _gd]),
-              borderRadius: BorderRadius.circular(4)),
+              color: _g,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-          const SizedBox(width: 8),
-          Text('Comment faire',
-            style: TextStyle(
-              color: _g.withOpacity(0.9), fontSize: 12.5,
+          const SizedBox(width: 10),
+          const Text('Comment faire',
+            style: TextStyle(color: _ink, fontSize: 13,
               fontWeight: FontWeight.w700)),
         ]),
-        const SizedBox(height: 12),
-        for (int i = 0; i < steps.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 9),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Container(
-                width: 20, height: 20,
-                alignment: Alignment.center,
-                margin: const EdgeInsets.only(top: 1),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_g.withOpacity(0.22), _g.withOpacity(0.08)]),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: _g.withOpacity(0.28))),
-                child: Text('${i + 1}',
-                  style: const TextStyle(
-                    color: _g, fontSize: 9.5, fontWeight: FontWeight.w900))),
-              const SizedBox(width: 10),
-              Expanded(child: Text(steps[i],
-                style: TextStyle(
-                  color: _muted.withOpacity(0.85),
-                  fontSize: 12.5, height: 1.4))),
-            ])),
+        const SizedBox(height: 14),
+        for (int i = 0; i < steps.length; i++) ...[
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 22, height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _g.withOpacity(0.12),
+                border: Border.all(color: _g.withOpacity(0.25)),
+              ),
+              alignment: Alignment.center,
+              child: Text('${i + 1}',
+                style: const TextStyle(
+                  color: _g, fontSize: 11,
+                  fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Text(steps[i],
+                  style: TextStyle(color: _muted, fontSize: 13, height: 1.4)),
+              ),
+            ),
+          ]),
+          if (i < steps.length - 1) const SizedBox(height: 10),
+        ],
       ]),
     );
   }
-}
-
-// ── Hex background painter ─────────────────────────────────────────────────
-
-class _HexPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = const Color(0xFF161B22)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.7;
-    const r = 26.0;
-    final w = r * math.sqrt(3);
-    final h = r * 2;
-    int row = 0;
-    for (double y = -h; y < size.height + h; y += h * 0.75) {
-      final offset = (row % 2) * w / 2;
-      for (double x = -w + offset; x < size.width + w; x += w) {
-        _hex(canvas, p, Offset(x, y), r);
-      }
-      row++;
-    }
-  }
-
-  void _hex(Canvas c, Paint p, Offset center, double r) {
-    final path = Path();
-    for (int i = 0; i < 6; i++) {
-      final a = math.pi / 180 * (60 * i - 30);
-      final pt = Offset(center.dx + r * math.cos(a), center.dy + r * math.sin(a));
-      i == 0 ? path.moveTo(pt.dx, pt.dy) : path.lineTo(pt.dx, pt.dy);
-    }
-    path.close();
-    c.drawPath(path, p);
-  }
-
-  @override bool shouldRepaint(_) => false;
 }
