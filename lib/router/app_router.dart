@@ -70,6 +70,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, state) => _fadeTransition(state, const AutomationScreen()),
           ),
           GoRoute(
+            path: AppConstants.routeBot,
+            pageBuilder: (_, state) => _fadeTransition(state, const BotScreen()),
+          ),
+          GoRoute(
             path: AppConstants.routeSettings,
             pageBuilder: (_, state) => _fadeTransition(state, const SettingsScreen()),
           ),
