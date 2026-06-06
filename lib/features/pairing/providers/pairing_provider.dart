@@ -42,10 +42,12 @@ class PairingState {
 class PairingNotifier extends Notifier<PairingState> {
   Timer? _qrTimer;
   Timer? _statusTimer;
+  bool _disposed = false;
 
   @override
   PairingState build() {
     ref.onDispose(() {
+      _disposed = true;
       _qrTimer?.cancel();
       _statusTimer?.cancel();
     });
@@ -72,9 +74,13 @@ class PairingNotifier extends Notifier<PairingState> {
 
   void startQrPolling() {
     _stopTimers();
-    _fetchQr();
-    _qrTimer = Timer.periodic(const Duration(seconds: 25), (_) => _fetchQr());
-    _statusTimer = Timer.periodic(const Duration(seconds: 3), (_) => _pollConnection());
+    // Give the embedded Node.js bot ~2s to finish starting up before first request
+    Future.delayed(const Duration(seconds: 2), () {
+      if (_disposed) return;
+      _fetchQr();
+      _qrTimer   = Timer.periodic(const Duration(seconds: 25), (_) => _fetchQr());
+      _statusTimer = Timer.periodic(const Duration(seconds: 3),  (_) => _pollConnection());
+    });
   }
 
   void stopPolling() => _stopTimers();
@@ -97,10 +103,10 @@ class PairingNotifier extends Notifier<PairingState> {
           clearError: true,
         );
       }
-    } catch (e) {
+    } catch (_) {
       if (state.qrString == null) {
         state = state.copyWith(
-          error: 'Impossible de charger le QR. Vérifiez la connexion au serveur.',
+          error: 'Bot en cours de démarrage… Patientez quelques secondes.',
         );
       }
     }
@@ -123,16 +129,32 @@ class PairingNotifier extends Notifier<PairingState> {
         );
         _statusTimer = Timer.periodic(const Duration(seconds: 3), (_) => _pollConnection());
       } else {
-        state = state.copyWith(
-          status: PairingStatus.error,
-          error: (data['message'] as String?) ?? 'Erreur lors de la génération du code.',
-        );
+        final msg = data['message'] as String?;
+        if (msg == 'Bot still starting. Retry in a moment.') {
+          state = state.copyWith(
+            status: PairingStatus.error,
+            error: 'Bot encore en démarrage — réessayez dans quelques secondes.',
+          );
+        } else {
+          state = state.copyWith(
+            status: PairingStatus.error,
+            error: msg ?? 'Erreur lors de la génération du code.',
+          );
+        }
       }
     } catch (e) {
-      state = state.copyWith(
-        status: PairingStatus.error,
-        error: 'Erreur réseau: vérifiez l\'URL du serveur.',
-      );
+      final msg = e.toString();
+      if (msg.contains('Connection refused') || msg.contains('SocketException')) {
+        state = state.copyWith(
+          status: PairingStatus.error,
+          error: 'Bot encore en démarrage — patientez quelques secondes puis réessayez.',
+        );
+      } else {
+        state = state.copyWith(
+          status: PairingStatus.error,
+          error: 'Impossible de contacter le bot. Vérifiez qu\'il est démarré.',
+        );
+      }
     }
   }
 
