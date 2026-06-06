@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../presentation/providers/auth_providers.dart';
 import '../../../services/api_service.dart';
 
-enum PairingStatus { idle, loading, waitingQr, waitingCode, connected, error }
+enum PairingStatus { idle, loading, botStarting, waitingQr, waitingCode, connected, error }
 
 class PairingState {
   final PairingStatus status;
@@ -11,6 +11,7 @@ class PairingState {
   final String? pairingCode;
   final String? error;
   final int qrExpiresIn;
+  final String? startingMessage;
 
   const PairingState({
     this.status = PairingStatus.idle,
@@ -18,6 +19,7 @@ class PairingState {
     this.pairingCode,
     this.error,
     this.qrExpiresIn = 60,
+    this.startingMessage,
   });
 
   PairingState copyWith({
@@ -29,6 +31,8 @@ class PairingState {
     String? error,
     bool clearError = false,
     int? qrExpiresIn,
+    String? startingMessage,
+    bool clearStartingMessage = false,
   }) =>
       PairingState(
         status: status ?? this.status,
@@ -36,13 +40,20 @@ class PairingState {
         pairingCode: clearCode ? null : (pairingCode ?? this.pairingCode),
         error: clearError ? null : (error ?? this.error),
         qrExpiresIn: qrExpiresIn ?? this.qrExpiresIn,
+        startingMessage: clearStartingMessage
+            ? null
+            : (startingMessage ?? this.startingMessage),
       );
 }
 
 class PairingNotifier extends Notifier<PairingState> {
   Timer? _qrTimer;
   Timer? _statusTimer;
+  Timer? _retryTimer;
   bool _disposed = false;
+  int _pairRetries = 0;
+  String? _pendingPhone;
+  static const int _maxPairRetries = 10;
 
   @override
   PairingState build() {
@@ -50,6 +61,7 @@ class PairingNotifier extends Notifier<PairingState> {
       _disposed = true;
       _qrTimer?.cancel();
       _statusTimer?.cancel();
+      _retryTimer?.cancel();
     });
     return const PairingState();
   }
@@ -74,12 +86,11 @@ class PairingNotifier extends Notifier<PairingState> {
 
   void startQrPolling() {
     _stopTimers();
-    // Give the embedded Node.js bot ~2s to finish starting up before first request
-    Future.delayed(const Duration(seconds: 2), () {
+    _retryTimer = Timer(const Duration(seconds: 2), () {
       if (_disposed) return;
       _fetchQr();
-      _qrTimer   = Timer.periodic(const Duration(seconds: 25), (_) => _fetchQr());
-      _statusTimer = Timer.periodic(const Duration(seconds: 3),  (_) => _pollConnection());
+      _qrTimer = Timer.periodic(const Duration(seconds: 5), (_) => _fetchQr());
+      _statusTimer = Timer.periodic(const Duration(seconds: 3), (_) => _pollConnection());
     });
   }
 
@@ -96,25 +107,49 @@ class PairingNotifier extends Notifier<PairingState> {
         return;
       }
       if (data['qr'] != null) {
+        _qrTimer?.cancel();
+        _qrTimer = Timer.periodic(const Duration(seconds: 25), (_) => _fetchQr());
         state = state.copyWith(
           status: PairingStatus.waitingQr,
           qrString: data['qr'] as String,
           qrExpiresIn: (data['expiresInSeconds'] as int?) ?? 60,
           clearError: true,
+          clearStartingMessage: true,
         );
+      } else {
+        if (state.status != PairingStatus.waitingQr) {
+          state = state.copyWith(
+            status: PairingStatus.botStarting,
+            startingMessage: 'Démarrage du bot…',
+            clearError: true,
+          );
+        }
       }
     } catch (_) {
-      if (state.qrString == null) {
+      if (state.status != PairingStatus.waitingQr) {
         state = state.copyWith(
-          error: 'Bot en cours de démarrage… Patientez quelques secondes.',
+          status: PairingStatus.botStarting,
+          startingMessage: 'Démarrage du bot…',
+          clearError: true,
         );
       }
     }
   }
 
   Future<void> requestPairingCode(String phone) async {
-    state = state.copyWith(status: PairingStatus.loading, clearError: true, clearCode: true);
+    _pairRetries = 0;
+    _pendingPhone = phone;
     _stopTimers();
+    state = state.copyWith(
+        status: PairingStatus.loading,
+        clearError: true,
+        clearCode: true,
+        clearStartingMessage: true);
+    await _tryPairingCode(phone);
+  }
+
+  Future<void> _tryPairingCode(String phone) async {
+    if (_disposed) return;
     try {
       final data = await _api.requestPairingCode(phone);
       if (data['connected'] == true) {
@@ -126,33 +161,49 @@ class PairingNotifier extends Notifier<PairingState> {
         state = state.copyWith(
           status: PairingStatus.waitingCode,
           pairingCode: data['code'] as String,
+          clearStartingMessage: true,
         );
-        _statusTimer = Timer.periodic(const Duration(seconds: 3), (_) => _pollConnection());
+        _statusTimer = Timer.periodic(
+            const Duration(seconds: 3), (_) => _pollConnection());
+        return;
+      }
+      final msg = data['message'] as String? ?? '';
+      final errCode = data['error'] as String? ?? '';
+      final isStarting = msg.toLowerCase().contains('starting') ||
+          errCode.contains('BOT_NOT_STARTED');
+      if (isStarting && _pairRetries < _maxPairRetries) {
+        _pairRetries++;
+        state = state.copyWith(
+          status: PairingStatus.botStarting,
+          startingMessage: 'Bot en démarrage… ($_pairRetries/$_maxPairRetries)',
+          clearError: true,
+        );
+        _retryTimer = Timer(
+            const Duration(seconds: 3), () => _tryPairingCode(phone));
       } else {
-        final msg = data['message'] as String?;
-        if (msg == 'Bot still starting. Retry in a moment.') {
-          state = state.copyWith(
-            status: PairingStatus.error,
-            error: 'Bot encore en démarrage — réessayez dans quelques secondes.',
-          );
-        } else {
-          state = state.copyWith(
-            status: PairingStatus.error,
-            error: msg ?? 'Erreur lors de la génération du code.',
-          );
-        }
+        state = state.copyWith(
+          status: PairingStatus.error,
+          error: msg.isNotEmpty ? msg : 'Erreur lors de la génération du code.',
+        );
       }
     } catch (e) {
       final msg = e.toString();
-      if (msg.contains('Connection refused') || msg.contains('SocketException')) {
+      final isConnRefused = msg.contains('Connection refused') ||
+          msg.contains('SocketException') ||
+          msg.contains('ECONNREFUSED');
+      if (isConnRefused && _pairRetries < _maxPairRetries) {
+        _pairRetries++;
         state = state.copyWith(
-          status: PairingStatus.error,
-          error: 'Bot encore en démarrage — patientez quelques secondes puis réessayez.',
+          status: PairingStatus.botStarting,
+          startingMessage: 'Démarrage du bot… $_pairRetries/$_maxPairRetries',
+          clearError: true,
         );
+        _retryTimer = Timer(
+            const Duration(seconds: 3), () => _tryPairingCode(phone));
       } else {
         state = state.copyWith(
           status: PairingStatus.error,
-          error: 'Impossible de contacter le bot. Vérifiez qu\'il est démarré.',
+          error: 'Impossible de joindre le bot. Patientez et réessayez.',
         );
       }
     }
@@ -172,14 +223,18 @@ class PairingNotifier extends Notifier<PairingState> {
 
   void reset() {
     _stopTimers();
+    _pairRetries = 0;
+    _pendingPhone = null;
     state = const PairingState();
   }
 
   void _stopTimers() {
     _qrTimer?.cancel();
     _statusTimer?.cancel();
+    _retryTimer?.cancel();
     _qrTimer = null;
     _statusTimer = null;
+    _retryTimer = null;
   }
 }
 
