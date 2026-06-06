@@ -133,10 +133,10 @@ async function startBot() {
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-app.get('/v1/health', (_req, res) =>
+app.get('/api/v1/health', (_req, res) =>
   res.json({ ok: true, version: '1.0.0-android' }));
 
-app.get('/v1/instance/status', (_req, res) => {
+app.get('/api/v1/instance/status', (_req, res) => {
   const mem = process.memoryUsage();
   res.json({
     success: true,
@@ -159,7 +159,7 @@ app.get('/v1/instance/status', (_req, res) => {
   });
 });
 
-app.get('/v1/instance/qr', async (_req, res) => {
+app.get('/api/v1/instance/qr', async (_req, res) => {
   if (isConnected)
     return res.json({ success: true, connected: true });
   if (!lastQr)
@@ -183,7 +183,7 @@ app.get('/v1/instance/qr', async (_req, res) => {
   }
 });
 
-app.post('/v1/instance/pair', async (req, res) => {
+app.post('/api/v1/instance/pair', async (req, res) => {
   if (isConnected) return res.json({ success: true, connected: true });
   const { phone } = req.body;
   if (!phone)
@@ -203,7 +203,7 @@ app.post('/v1/instance/pair', async (req, res) => {
   }
 });
 
-app.post('/v1/instance/reconnect', (req, res) => {
+app.post('/api/v1/instance/reconnect', (req, res) => {
   res.json({ success: true, message: 'Reconnecting…' });
   isConnected = false;
   botStarting = false;
