@@ -120,7 +120,7 @@ class PairingNotifier extends Notifier<PairingState> {
         if (state.status != PairingStatus.waitingQr) {
           state = state.copyWith(
             status: PairingStatus.botStarting,
-            startingMessage: 'Démarrage du bot…',
+            startingMessage: 'DÃ©marrage du botâ¦',
             clearError: true,
           );
         }
@@ -129,7 +129,7 @@ class PairingNotifier extends Notifier<PairingState> {
       if (state.status != PairingStatus.waitingQr) {
         state = state.copyWith(
           status: PairingStatus.botStarting,
-          startingMessage: 'Démarrage du bot…',
+          startingMessage: 'DÃ©marrage du botâ¦',
           clearError: true,
         );
       }
@@ -175,7 +175,7 @@ class PairingNotifier extends Notifier<PairingState> {
         _pairRetries++;
         state = state.copyWith(
           status: PairingStatus.botStarting,
-          startingMessage: 'Bot en démarrage… ($_pairRetries/$_maxPairRetries)',
+          startingMessage: 'Bot en dÃ©marrageâ¦ ($_pairRetries/$_maxPairRetries)',
           clearError: true,
         );
         _retryTimer = Timer(
@@ -183,7 +183,7 @@ class PairingNotifier extends Notifier<PairingState> {
       } else {
         state = state.copyWith(
           status: PairingStatus.error,
-          error: msg.isNotEmpty ? msg : 'Erreur lors de la génération du code.',
+          error: msg.isNotEmpty ? msg : 'Erreur lors de la gÃ©nÃ©ration du code.',
         );
       }
     } catch (e) {
@@ -195,7 +195,7 @@ class PairingNotifier extends Notifier<PairingState> {
         _pairRetries++;
         state = state.copyWith(
           status: PairingStatus.botStarting,
-          startingMessage: 'Démarrage du bot… $_pairRetries/$_maxPairRetries',
+          startingMessage: 'DÃ©marrage du botâ¦ $_pairRetries/$_maxPairRetries',
           clearError: true,
         );
         _retryTimer = Timer(
@@ -203,7 +203,7 @@ class PairingNotifier extends Notifier<PairingState> {
       } else {
         state = state.copyWith(
           status: PairingStatus.error,
-          error: 'Impossible de joindre le bot. Patientez et réessayez.',
+          error: 'Impossible de joindre le bot. Patientez et rÃ©essayez.',
         );
       }
     }
@@ -226,6 +226,23 @@ class PairingNotifier extends Notifier<PairingState> {
     _pairRetries = 0;
     _pendingPhone = null;
     state = const PairingState();
+  }
+
+  Future<void> resetBot() async {
+    _stopTimers();
+    _pairRetries = 0;
+    _pendingPhone = null;
+    state = const PairingState(
+      status: PairingStatus.botStarting,
+      startingMessage: 'Réinitialisation…',
+    );
+    try {
+      await _api.resetBot();
+    } catch (_) {}
+    await Future.delayed(const Duration(seconds: 2));
+    if (_disposed) return;
+    state = const PairingState();
+    startQrPolling();
   }
 
   void _stopTimers() {
