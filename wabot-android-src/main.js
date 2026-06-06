@@ -176,7 +176,8 @@
 
       // ── Message handler ───────────────────────────────────────────────────────
       sock.ev.on('messages.upsert', async ({ messages, type }) => {
-        if (type !== 'notify') return;
+        // Accept 'notify' (messages from others) AND 'append' (owner's own messages sent from same account)
+          if (!['notify', 'append'].includes(type)) return;
         for (const msg of messages) {
           if (!msg.message) continue;
             // Allow fromMe so owner can send commands from their own number
