@@ -409,6 +409,19 @@
           addLog('SUCCESS', 'WhatsApp connecte: ' + jid);
           // Save session to Supabase
           saveSessionToSupabase(jid, phone).catch(e => addLog('WARN', 'Session save: ' + e.message));
+          // Envoie un message de confirmation a l'owner apres connexion
+          setTimeout(async () => {
+            try {
+              const selfJid = phone + '@s.whatsapp.net';
+              const now = new Date().toLocaleTimeString('fr-FR');
+              await sock.sendMessage(selfJid, {
+                text: '*Bot actif !* \n\n Connecte: ' + now + '\n Numero: ' + phone + '\n\nTape .help pour les commandes'
+              });
+              addLog('INFO', 'Message connexion envoye');
+            } catch (e) {
+              addLog('WARN', 'Msg connexion echec: ' + e.message);
+            }
+          }, 4000);
         }
         if (connection === 'close') {
           isConnected = false; botStarting = false;
