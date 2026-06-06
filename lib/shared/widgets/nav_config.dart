@@ -29,6 +29,12 @@ const kNavGroups = [
       route: AppConstants.routeDashboard,
     ),
     WNavItem(
+      icon: Icons.smart_toy_outlined,
+      activeIcon: Icons.smart_toy_rounded,
+      label: 'Bot',
+      route: AppConstants.routeBot,
+    ),
+    WNavItem(
       icon: Icons.chat_bubble_outline_rounded,
       activeIcon: Icons.chat_bubble_rounded,
       label: 'Chats',
