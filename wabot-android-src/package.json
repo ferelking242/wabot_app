@@ -4,7 +4,7 @@
   "description": "Wabot embedded Android — vrai bot WABOT via nodejs-mobile",
   "main": "main.js",
   "scripts": {
-    "build": "node -e \"const {execSync}=require('child_process');try{execSync('npx esbuild main.js --bundle --platform=node --format=cjs --outfile=bundle.js --external:bufferutil --external:utf-8-validate --external:canvas --external:gtts --external:file-type --external:@google-cloud/text-to-speech --external:ffmpeg-static --external:@ffmpeg/ffmpeg --alias:fluent-ffmpeg=./android-mocks/ffmpeg.js --alias:sharp=./android-mocks/sharp.js --alias:puppeteer=./android-mocks/puppeteer.js --alias:bcrypt=./android-mocks/bcrypt.js --alias:ytdl-core=./android-mocks/ytdl.js --log-limit=0',{stdio:\\'inherit\\'});console.log(\\'Bundle OK\\');}catch(e){console.error(\\'esbuild failed:\\',e.message);process.exit(1);}\""
+    "build": "node scripts/build.js"
   },
   "dependencies": {
     "@peculiar/webcrypto": "^1.4.5",
