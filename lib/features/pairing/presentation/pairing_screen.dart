@@ -97,7 +97,7 @@ class _HexPainter extends CustomPainter {
   bool shouldRepaint(_HexPainter old) => false;
 }
 
-// ── Main screen ─────────────────────────────────────────────────────────────
+// ââ Main screen âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 class PairingScreen extends ConsumerStatefulWidget {
   const PairingScreen({super.key});
@@ -195,7 +195,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
                   _PlatformBadge().animate(delay: 160.ms).fadeIn(),
                   const SizedBox(height: 28),
 
-                  // ── Tab bar (glass, no heavy border) ────────────────
+                  // ââ Tab bar (glass, no heavy border) ââââââââââââââââ
                   _Glass(
                     radius: 18,
                     padding: const EdgeInsets.all(5),
@@ -241,7 +241,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
 
                   const SizedBox(height: 20),
 
-                  // ── Tab content ──────────────────────────────────────
+                  // ââ Tab content ââââââââââââââââââââââââââââââââââââââ
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 220),
                     transitionBuilder: (child, anim) =>
@@ -252,7 +252,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
                           ctrl: _phoneCtrl, state: st),
                   ).animate(delay: 250.ms).fadeIn(),
 
-                  // ── Bot starting indicator ───────────────────────────
+                  // ââ Bot starting indicator âââââââââââââââââââââââââââ
                   if (st.status == PairingStatus.botStarting &&
                       st.startingMessage != null) ...[
                     const SizedBox(height: 14),
@@ -260,7 +260,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
                       .animate().fadeIn(),
                   ],
 
-                  // ── Error banner ─────────────────────────────────────
+                  // ââ Error banner âââââââââââââââââââââââââââââââââââââ
                   if (st.error != null) ...[
                     const SizedBox(height: 14),
                     _ErrorBanner(message: st.error!).animate().fadeIn().shake(),
@@ -268,12 +268,24 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
 
                   const SizedBox(height: 18),
 
-                  // ── Instructions ─────────────────────────────────────
+                  // ââ Instructions âââââââââââââââââââââââââââââââââââââ
                   _Instructions(isQr: _tab.index == 0)
                     .animate(delay: 300.ms).fadeIn(),
 
                   const SizedBox(height: 22),
 
+                  OutlinedButton.icon(
+                    onPressed: () => ref.read(pairingProvider.notifier).resetBot(),
+                    icon: const Icon(Icons.refresh_rounded, size: 15),
+                    label: const Text('Réinitialiser la connexion'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFEF9A9A),
+                      side: const BorderSide(color: Color(0xFFE53935), width: 1),
+                      textStyle: const TextStyle(fontSize: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   TextButton(
                     onPressed: () =>
                         ref.read(authProvider.notifier).signOut(),
@@ -291,7 +303,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen>
   }
 }
 
-// ── QR tab ───────────────────────────────────────────────────────────────────
+// ââ QR tab âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 class _QrTab extends StatelessWidget {
   final PairingState state;
@@ -302,7 +314,7 @@ class _QrTab extends StatelessWidget {
     if (state.status == PairingStatus.connected) return const _SuccessView();
     if (state.status == PairingStatus.botStarting || state.qrString == null) {
       return _LoadingView(
-        message: state.startingMessage ?? 'Démarrage du bot…',
+        message: state.startingMessage ?? 'DÃ©marrage du botâ¦',
       );
     }
 
@@ -348,7 +360,7 @@ class _QrTab extends StatelessWidget {
   }
 }
 
-// ── Code tab ─────────────────────────────────────────────────────────────────
+// ââ Code tab âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 class _CodeTab extends ConsumerWidget {
   final TextEditingController ctrl;
@@ -362,7 +374,7 @@ class _CodeTab extends ConsumerWidget {
       return _CodeDisplay(code: state.pairingCode!, state: state);
     if (state.status == PairingStatus.botStarting)
       return _LoadingView(
-        message: state.startingMessage ?? 'Démarrage du bot…',
+        message: state.startingMessage ?? 'DÃ©marrage du botâ¦',
         color: _g,
       );
 
@@ -376,7 +388,7 @@ class _CodeTab extends ConsumerWidget {
         Row(children: [
           const Icon(Icons.phone_android_rounded, size: 14, color: _muted),
           const SizedBox(width: 6),
-          const Text('Numéro WhatsApp',
+          const Text('NumÃ©ro WhatsApp',
             style: TextStyle(
               color: _muted, fontSize: 11.5,
               fontWeight: FontWeight.w600, letterSpacing: 0.6)),
@@ -491,7 +503,7 @@ class _CodeTab extends ConsumerWidget {
   }
 }
 
-// ── Code display ─────────────────────────────────────────────────────────────
+// ââ Code display âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 class _CodeDisplay extends StatelessWidget {
   final String code;
@@ -510,7 +522,7 @@ class _CodeDisplay extends StatelessWidget {
           Clipboard.setData(ClipboardData(text: code));
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Code copié !'),
+              content: const Text('Code copiÃ© !'),
               duration: const Duration(seconds: 2),
               backgroundColor: _g,
               shape: RoundedRectangleBorder(
@@ -563,7 +575,7 @@ class _CodeDisplay extends StatelessWidget {
                 child: CircularProgressIndicator(
                   strokeWidth: 2, color: _g.withOpacity(0.7))),
               const SizedBox(width: 8),
-              Text('En attente de connexion WhatsApp…',
+              Text('En attente de connexion WhatsAppâ¦',
                 style: TextStyle(color: _muted, fontSize: 12)),
             ]).animate(onPlay: (c) => c.repeat())
               .shimmer(color: _g.withOpacity(0.2)),
@@ -574,7 +586,7 @@ class _CodeDisplay extends StatelessWidget {
   }
 }
 
-// ── Bot starting banner ───────────────────────────────────────────────────────
+// ââ Bot starting banner âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 class _StartingBanner extends StatelessWidget {
   final String message;
@@ -601,7 +613,7 @@ class _StartingBanner extends StatelessWidget {
   }
 }
 
-// ── Error banner ──────────────────────────────────────────────────────────────
+// ââ Error banner ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 class _ErrorBanner extends StatelessWidget {
   final String message;
@@ -626,7 +638,7 @@ class _ErrorBanner extends StatelessWidget {
   }
 }
 
-// ── Loading view ──────────────────────────────────────────────────────────────
+// ââ Loading view ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 class _LoadingView extends StatelessWidget {
   final String message;
@@ -650,7 +662,7 @@ class _LoadingView extends StatelessWidget {
   }
 }
 
-// ── Success view ──────────────────────────────────────────────────────────────
+// ââ Success view ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 class _SuccessView extends StatelessWidget {
   const _SuccessView();
@@ -672,11 +684,11 @@ class _SuccessView extends StatelessWidget {
           child: const Icon(Icons.check_rounded, color: _g, size: 34),
         ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
         const SizedBox(height: 16),
-        const Text('Connecté !',
+        const Text('ConnectÃ© !',
           style: TextStyle(color: _g, fontSize: 18, fontWeight: FontWeight.w800))
           .animate(delay: 150.ms).fadeIn().slideY(begin: 0.2, end: 0),
         const SizedBox(height: 6),
-        Text('WhatsApp lié avec succès',
+        Text('WhatsApp liÃ© avec succÃ¨s',
           style: TextStyle(color: _muted, fontSize: 13))
           .animate(delay: 200.ms).fadeIn(),
       ]),
@@ -684,7 +696,7 @@ class _SuccessView extends StatelessWidget {
   }
 }
 
-// ── Countdown bar ─────────────────────────────────────────────────────────────
+// ââ Countdown bar âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 class _CountdownBar extends StatelessWidget {
   final int expiresIn;
@@ -711,7 +723,7 @@ class _CountdownBar extends StatelessWidget {
   }
 }
 
-// ── Platform badge ────────────────────────────────────────────────────────────
+// ââ Platform badge ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 class _PlatformBadge extends StatelessWidget {
   @override
@@ -734,14 +746,14 @@ class _PlatformBadge extends StatelessWidget {
           : Icons.phone_android_rounded,
           size: 13, color: _muted),
         const SizedBox(width: 5),
-        Text('Bot local · ${PlatformService.platformLabel}',
+        Text('Bot local Â· ${PlatformService.platformLabel}',
           style: const TextStyle(color: _muted, fontSize: 12)),
       ]),
     );
   }
 }
 
-// ── Instructions ─────────────────────────────────────────────────────────────
+// ââ Instructions âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 class _Instructions extends StatelessWidget {
   final bool isQr;
@@ -751,16 +763,16 @@ class _Instructions extends StatelessWidget {
   Widget build(BuildContext context) {
     final steps = isQr
       ? const [
-          'Ouvrez WhatsApp sur votre téléphone',
-          'Appuyez sur les 3 points → Appareils liés',
+          'Ouvrez WhatsApp sur votre tÃ©lÃ©phone',
+          'Appuyez sur les 3 points â Appareils liÃ©s',
           'Appuyez sur "Lier un appareil"',
-          'Scannez le QR Code affiché',
+          'Scannez le QR Code affichÃ©',
         ]
       : const [
-          'Ouvrez WhatsApp sur votre téléphone',
-          'Appuyez sur les 3 points → Appareils liés',
-          '"Lier un appareil" → continuer sans QR',
-          'Entrez le code à 8 chiffres affiché',
+          'Ouvrez WhatsApp sur votre tÃ©lÃ©phone',
+          'Appuyez sur les 3 points â Appareils liÃ©s',
+          '"Lier un appareil" â continuer sans QR',
+          'Entrez le code Ã  8 chiffres affichÃ©',
         ];
 
     return _Glass(
