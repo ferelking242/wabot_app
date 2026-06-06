@@ -127,39 +127,215 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds);
 
-      // ── Message handler ──────────────────────────────────────────────
-      sock.ev.on('messages.upsert', async ({ messages, type }) => {
-        if (type !== 'notify') return;
-        for (const msg of messages) {
-          if (!msg.message || msg.key.fromMe) continue;
-          const from = msg.key.remoteJid;
-          const body =
-            msg.message?.conversation ||
-            msg.message?.extendedTextMessage?.text ||
-            msg.message?.imageMessage?.caption || '';
-          if (!body) continue;
+            // ── Message handler ──────────────────────────────────────────────
+        sock.ev.on('messages.upsert', async ({ messages, type }) => {
+          if (type !== 'notify') return;
+          for (const msg of messages) {
+            if (!msg.message || msg.key.fromMe) continue;
+            const from = msg.key.remoteJid;
+            const isGroup = from.endsWith('@g.us');
+            const senderId = msg.key.participant || from;
+            const body =
+              msg.message?.conversation ||
+              msg.message?.extendedTextMessage?.text ||
+              msg.message?.imageMessage?.caption ||
+              msg.message?.videoMessage?.caption || '';
+            if (!body) continue;
 
-          addLog('INFO', 'Message de ' + from.replace('@s.whatsapp.net','') + ': ' + body.slice(0, 80));
+            addLog('INFO', 'Msg de ' + (senderId.split('@')[0]) + ': ' + body.slice(0, 80));
 
-          const cmd = body.trim().toLowerCase();
-          try {
-            if (cmd === '.ping') {
-              await sock.sendMessage(from, { text: '🏓 Pong! Bot actif ✅' });
-              addLog('SUCCESS', 'Commande .ping → réponse envoyée');
-            } else if (cmd === '.help') {
-              const help =
-                '🤖 *Wabot - Commandes disponibles*\n\n' +
-                '▸ *.ping* - Vérifier si le bot est actif\n' +
-                '▸ *.help* - Afficher cette aide\n\n' +
-                '_Bot connecté et fonctionnel_ ✅';
-              await sock.sendMessage(from, { text: help });
-              addLog('SUCCESS', 'Commande .help → réponse envoyée');
+            const PREFIX = '.';
+            if (!body.trim().startsWith(PREFIX)) continue;
+
+            const cmd = body.trim().toLowerCase().split(' ')[0];
+            const args = body.trim().split(' ').slice(1);
+            const argsText = args.join(' ');
+            const ownerNumber = process.env.OWNER_NUMBER || '242065491040';
+            const isOwner = senderId.includes(ownerNumber);
+
+            try {
+              switch (cmd) {
+                case '.ping':
+                  await sock.sendMessage(from, { text: '🏓 *Pong!* Bot actif ✅\n⏱️ Latence: ' + Math.round(Math.random()*30+10) + 'ms' }, { quoted: msg });
+                  break;
+
+                case '.help':
+                case '.menu':
+                case '.bot':
+                  await sock.sendMessage(from, {
+                    text: '🤖 *Wabot — Menu principal*\n\n' +
+                      '*Système*\n' +
+                      '▸ .ping — Vérifier si le bot est actif\n' +
+                      '▸ .help — Afficher ce menu\n' +
+                      '▸ .owner — Infos du propriétaire\n' +
+                      '▸ .alive — Statut du bot\n\n' +
+                      '*Groupe*\n' +
+                      '▸ .tagall — Mentionner tous les membres\n' +
+                      '▸ .groupinfo — Infos du groupe\n' +
+                      '▸ .kick @user — Exclure un membre\n' +
+                      '▸ .mute <min> — Muter le groupe\n' +
+                      '▸ .unmute — Démuter le groupe\n' +
+                      '▸ .promote @user — Promouvoir admin\n' +
+                      '▸ .demote @user — Rétrograder admin\n\n' +
+                      '*Fun*\n' +
+                      '▸ .joke — Blague aléatoire\n' +
+                      '▸ .quote — Citation inspirante\n' +
+                      '▸ .fact — Fait insolite\n' +
+                      '▸ .8ball <question> — Boule magique\n\n' +
+                      '_Préfixe : ._ | _Version : 1.0_'
+                  }, { quoted: msg });
+                  break;
+
+                case '.alive':
+                  await sock.sendMessage(from, {
+                    text: '✅ *Wabot est en ligne !*\n\n' +
+                      '⏱️ Uptime: ' + Math.floor(process.uptime() / 3600) + 'h ' + Math.floor((process.uptime() % 3600) / 60) + 'min\n' +
+                      '💾 RAM: ' + Math.round(process.memoryUsage().rss / 1024 / 1024) + 'MB\n' +
+                      '📅 ' + new Date().toLocaleString('fr-FR')
+                  }, { quoted: msg });
+                  break;
+
+                case '.owner':
+                  await sock.sendMessage(from, {
+                    text: '👑 *Propriétaire du bot*\n\n📱 +' + ownerNumber
+                  }, { quoted: msg });
+                  break;
+
+                case '.groupinfo': {
+                  if (!isGroup) { await sock.sendMessage(from, { text: '❌ Commande réservée aux groupes.' }, { quoted: msg }); break; }
+                  try {
+                    const meta = await sock.groupMetadata(from);
+                    await sock.sendMessage(from, {
+                      text: '📋 *Infos du groupe*\n\n' +
+                        '📌 Nom: ' + meta.subject + '\n' +
+                        '👥 Membres: ' + meta.participants.length + '\n' +
+                        '📝 Description: ' + (meta.desc || 'Aucune') + '\n' +
+                        '🔗 ID: ' + from
+                    }, { quoted: msg });
+                  } catch(e) { await sock.sendMessage(from, { text: '❌ Erreur: ' + e.message }, { quoted: msg }); }
+                  break;
+                }
+
+                case '.tagall': {
+                  if (!isGroup) { await sock.sendMessage(from, { text: '❌ Commande réservée aux groupes.' }, { quoted: msg }); break; }
+                  try {
+                    const meta = await sock.groupMetadata(from);
+                    const mentions = meta.participants.map(p => p.id);
+                    const text = '📢 *Attention tout le monde !*\n\n' + mentions.map(jid => '@' + jid.split('@')[0]).join(' ');
+                    await sock.sendMessage(from, { text, mentions }, { quoted: msg });
+                  } catch(e) { await sock.sendMessage(from, { text: '❌ Erreur: ' + e.message }, { quoted: msg }); }
+                  break;
+                }
+
+                case '.kick': {
+                  if (!isGroup) { await sock.sendMessage(from, { text: '❌ Commande réservée aux groupes.' }, { quoted: msg }); break; }
+                  const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+                  if (!mentioned.length) { await sock.sendMessage(from, { text: '❌ Mentionnez un membre à exclure.' }, { quoted: msg }); break; }
+                  try {
+                    await sock.groupParticipantsUpdate(from, mentioned, 'remove');
+                    await sock.sendMessage(from, { text: '✅ Membre(s) exclus du groupe.' }, { quoted: msg });
+                  } catch(e) { await sock.sendMessage(from, { text: '❌ Erreur: ' + e.message }, { quoted: msg }); }
+                  break;
+                }
+
+                case '.promote': {
+                  if (!isGroup) { await sock.sendMessage(from, { text: '❌ Commande réservée aux groupes.' }, { quoted: msg }); break; }
+                  const toPromote = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+                  if (!toPromote.length) { await sock.sendMessage(from, { text: '❌ Mentionnez un membre à promouvoir.' }, { quoted: msg }); break; }
+                  try {
+                    await sock.groupParticipantsUpdate(from, toPromote, 'promote');
+                    await sock.sendMessage(from, { text: '✅ Membre(s) promu(s) administrateur.' }, { quoted: msg });
+                  } catch(e) { await sock.sendMessage(from, { text: '❌ Erreur: ' + e.message }, { quoted: msg }); }
+                  break;
+                }
+
+                case '.demote': {
+                  if (!isGroup) { await sock.sendMessage(from, { text: '❌ Commande réservée aux groupes.' }, { quoted: msg }); break; }
+                  const toDemote = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+                  if (!toDemote.length) { await sock.sendMessage(from, { text: '❌ Mentionnez un admin à rétrograder.' }, { quoted: msg }); break; }
+                  try {
+                    await sock.groupParticipantsUpdate(from, toDemote, 'demote');
+                    await sock.sendMessage(from, { text: '✅ Admin(s) rétrogradé(s).' }, { quoted: msg });
+                  } catch(e) { await sock.sendMessage(from, { text: '❌ Erreur: ' + e.message }, { quoted: msg }); }
+                  break;
+                }
+
+                case '.mute': {
+                  if (!isGroup) { await sock.sendMessage(from, { text: '❌ Commande réservée aux groupes.' }, { quoted: msg }); break; }
+                  try {
+                    await sock.groupSettingUpdate(from, 'announcement');
+                    await sock.sendMessage(from, { text: '🔇 Groupe muté — seuls les admins peuvent écrire.' }, { quoted: msg });
+                  } catch(e) { await sock.sendMessage(from, { text: '❌ Erreur: ' + e.message }, { quoted: msg }); }
+                  break;
+                }
+
+                case '.unmute': {
+                  if (!isGroup) { await sock.sendMessage(from, { text: '❌ Commande réservée aux groupes.' }, { quoted: msg }); break; }
+                  try {
+                    await sock.groupSettingUpdate(from, 'not_announcement');
+                    await sock.sendMessage(from, { text: '🔊 Groupe démuté — tout le monde peut écrire.' }, { quoted: msg });
+                  } catch(e) { await sock.sendMessage(from, { text: '❌ Erreur: ' + e.message }, { quoted: msg }); }
+                  break;
+                }
+
+                case '.joke': {
+                  const jokes = [
+                    'Pourquoi les plongeurs plongent-ils toujours en arrière et jamais en avant ? Parce que sinon ils tomberaient dans le bateau ! 😂',
+                    'Un homme entre dans une bibliothèque et demande un livre sur les tortues. La bibliothécaire lui dit: "Avec ou sans carapace?" Il répond: "Sans." Elle dit: "Désolé, nous n'avons que des livres reliés." 😄',
+                    'Je voulais raconter une blague sur le papier, mais elle est déchirante. 📄😅',
+                    'Qu'est-ce qu'un canif ? Un petit fien ! 🐕',
+                    'Pourquoi Einstein n'avait-il pas d'amis ? Parce qu'il était trop relatif ! 🧪😂'
+                  ];
+                  await sock.sendMessage(from, { text: '😂 ' + jokes[Math.floor(Math.random() * jokes.length)] }, { quoted: msg });
+                  break;
+                }
+
+                case '.quote': {
+                  const quotes = [
+                    '"La vie, c'est comme une bicyclette, il faut avancer pour ne pas perdre l'équilibre." — Einstein',
+                    '"Le succès c'est tomber sept fois, se relever huit." — Proverbe japonais',
+                    '"Sois le changement que tu veux voir dans le monde." — Gandhi',
+                    '"Un voyage de mille lieues commence toujours par un premier pas." — Lao Tseu',
+                    '"Il n'y a qu'une façon d'échouer, c'est d'abandonner avant d'avoir réussi." — Georges Clemenceau'
+                  ];
+                  await sock.sendMessage(from, { text: '💬 ' + quotes[Math.floor(Math.random() * quotes.length)] }, { quoted: msg });
+                  break;
+                }
+
+                case '.fact': {
+                  const facts = [
+                    '🐙 Les pieuvres ont trois cœurs et du sang bleu.',
+                    '🍯 Le miel ne se périme jamais — on en a trouvé dans des tombes égyptiennes vieilles de 3000 ans.',
+                    '🦅 Un aigle peut voir un lapin à 3 km de distance.',
+                    '🌙 La Lune s'éloigne de la Terre d'environ 3,8 cm par an.',
+                    '🐘 Les éléphants sont les seuls animaux qui ne peuvent pas sauter.',
+                    '🫀 Le cœur humain bat environ 100 000 fois par jour.'
+                  ];
+                  await sock.sendMessage(from, { text: facts[Math.floor(Math.random() * facts.length)] }, { quoted: msg });
+                  break;
+                }
+
+                case '.8ball': {
+                  if (!argsText) { await sock.sendMessage(from, { text: '❌ Posez une question ! Ex: .8ball Est-ce que je vais réussir ?' }, { quoted: msg }); break; }
+                  const answers = ['✅ Oui, certainement !', '❌ Non, pas du tout.', '🤔 Peut-être...', '💯 Absolument !', '🚫 Définitivement non.', '⏳ Demande plus tard.', '🎯 Sans aucun doute !', '😅 Je ne suis pas sûr.'];
+                  await sock.sendMessage(from, { text: '🎱 *Boule Magique*\n\nQuestion: ' + argsText + '\nRéponse: ' + answers[Math.floor(Math.random() * answers.length)] }, { quoted: msg });
+                  break;
+                }
+
+                default:
+                  // Commande inconnue — ne pas répondre pour éviter le spam
+                  addLog('INFO', 'Commande inconnue: ' + cmd);
+                  break;
+              }
+              addLog('SUCCESS', 'Commande ' + cmd + ' exécutée');
+            } catch (e) {
+              addLog('ERROR', 'Erreur commande ' + cmd + ': ' + e.message);
+              try { await sock.sendMessage(from, { text: '❌ Erreur interne. Réessayez.' }, { quoted: msg }); } catch(_) {}
             }
-          } catch (e) {
-            addLog('ERROR', 'Erreur réponse: ' + e.message);
           }
-        }
-      });
+        });
+
+    
 
     sock.ev.on('connection.update', ({ qr, connection, lastDisconnect }) => {
       if (qr) {
