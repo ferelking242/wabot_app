@@ -1,18 +1,35 @@
 abstract final class AppConstants {
-  // App info
+  // ── App info ──────────────────────────────────────────────────────────────
   static const String appName    = 'Wabot';
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '1.1.0';
 
-  // ── Storage keys ────────────────────────────────────────────────────────────
-  static const String keySetupDone = 'wabot_setup_done'; // bool
-  static const String keyThemeMode = 'theme_mode';
-  static const String keyLanguage  = 'language';
+  // ── Storage keys ──────────────────────────────────────────────────────────
+  static const String keySetupDone      = 'wabot_setup_done';
+  static const String keyOnboardingDone = 'onboarding_done';
+  static const String keyThemeMode      = 'theme_mode';
+  static const String keyLanguage       = 'language';
 
-  // Legacy (kept for migration, no longer used for auth flow)
+  // Legacy (kept for migration)
   static const String keyApiUrl = 'api_url';
   static const String keyApiKey = 'wabot_api_key';
 
-  // ── API paths ────────────────────────────────────────────────────────────────
+  // ── Named routes ──────────────────────────────────────────────────────────
+  static const String routeSplash     = '/';
+  static const String routeOnboarding = '/onboarding';
+  static const String routeAuth       = '/auth';
+  static const String routePair       = '/pair';
+  static const String routeHome       = '/home';
+  static const String routeDashboard  = '/dashboard';
+  static const String routeChats      = '/chats';
+  static const String routeDevices    = '/devices';
+  static const String routeGroups     = '/groups';
+  static const String routeAnalytics  = '/analytics';
+  static const String routeLogs       = '/logs';
+  static const String routeAutomation = '/automation';
+  static const String routeCommands   = '/commands';
+  static const String routeSettings   = '/settings';
+
+  // ── API paths ─────────────────────────────────────────────────────────────
   static const String apiStatus   = '/api/v1/instance/status';
   static const String apiQr       = '/api/v1/instance/qr';
   static const String apiPair     = '/api/v1/instance/pair';
@@ -37,7 +54,7 @@ abstract final class AppConstants {
   static const double tabletBreakpoint      = 900;
   static const double desktopBreakpoint     = 1200;
 
-  // ── Refresh intervals (ms) ───────────────────────────────────────────────
+  // ── Refresh intervals (ms) ────────────────────────────────────────────────
   static const int dashboardRefreshInterval = 5000;
   static const int logsRefreshInterval      = 1000;
   static const int maxLogLines              = 500;
