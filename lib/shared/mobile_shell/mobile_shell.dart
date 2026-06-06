@@ -5,21 +5,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
 import '../../presentation/providers/auth_providers.dart';
+import '../../services/api_service.dart';
 import '../pages/notifications_page.dart';
 import '../pages/search_page.dart';
 import '../widgets/responsive_role_shell.dart' show RoleNavEntry;
 
-const _pageBg    = Color(0xFF0D0E11);
-const _white     = Colors.white;
-const _ink       = Color(0xFFF2F3F5);
-const _muted     = Color(0xFF8A9199);
-const _terra     = Color(0xFF25D366);
-const _orange    = Color(0xFF128C7E);
-const _gold      = Color(0xFF34E07E);
+const _pageBg  = Color(0xFF0D0E11);
+const _white   = Colors.white;
+const _ink     = Color(0xFFF2F3F5);
+const _muted   = Color(0xFF8A9199);
+const _terra   = Color(0xFF25D366);
+const _orange  = Color(0xFF128C7E);
+const _gold    = Color(0xFF34E07E);
 
-const _menuBg1   = Color(0xFF0A0C0F);
-const _menuBg2   = Color(0xFF0E1711);
-const _menuTxt   = Color(0xFFF2F3F5);
+const _menuBg1 = Color(0xFF0A0C0F);
+const _menuBg2 = Color(0xFF0E1711);
+const _menuTxt = Color(0xFFF2F3F5);
 
 const _kEdgeZone = 28.0;
 
@@ -74,7 +75,7 @@ class _MobileShellState extends ConsumerState<MobileShell>
     setState(() {
       _scale  = 1 - 0.10 * t;
       _xShift = 0.68 * t;
-      _yShift = 0.04 * t;
+      _yShift = 0.07 * t;   // ← augmenté 0.04→0.07 pour aligner avec les nav items
       _radius = 28 * t;
     });
   }
@@ -145,7 +146,6 @@ class _MobileShellState extends ConsumerState<MobileShell>
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
-    const String? user = null;
 
     return GestureDetector(
       onHorizontalDragStart: _onDragStart,
@@ -163,7 +163,6 @@ class _MobileShellState extends ConsumerState<MobileShell>
                 alignment: Alignment.centerLeft,
                 child: _SidebarPanel(
                   entries: widget.drawerEntries,
-                  user: user,
                   onSelect: (key) { _closeMenu(); _navigateTo(key); },
                   onSignOut: () => ref.read(authProvider.notifier).signOut(),
                   onAccount: _openAccount,
@@ -174,7 +173,7 @@ class _MobileShellState extends ConsumerState<MobileShell>
               ),
             ),
 
-            // 2 — Main card with WHITE shadow like WhatsApp
+            // 2 — Main card
             Transform(
               transform: Matrix4.identity()
                 ..translate(size.width * _xShift, size.height * _yShift)
@@ -209,7 +208,6 @@ class _MobileShellState extends ConsumerState<MobileShell>
                         child: Column(children: [
                           _SmartHeader(
                             title: widget.title,
-                            user: user,
                             onMenu: _toggleMenu,
                             onSearch: _openSearch,
                             onNotifications: _openNotifications,
@@ -249,6 +247,10 @@ class _MobileShellState extends ConsumerState<MobileShell>
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Full-page overlay (search / notifications)
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _FullPage extends StatelessWidget {
   final String title;
   final Widget child;
@@ -287,9 +289,12 @@ class _FullPage extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Top header bar inside the main card
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _SmartHeader extends StatelessWidget {
   final String title;
-  final String? user;
   final VoidCallback onMenu;
   final VoidCallback onSearch;
   final VoidCallback onNotifications;
@@ -299,7 +304,7 @@ class _SmartHeader extends StatelessWidget {
   final ValueChanged<int> onTabTap;
 
   const _SmartHeader({
-    required this.title, required this.user,
+    required this.title,
     required this.onMenu, required this.onSearch,
     required this.onNotifications, required this.onAccount,
     required this.pageIndex, required this.entries,
@@ -339,7 +344,6 @@ class _SmartHeader extends StatelessWidget {
                       decoration: const BoxDecoration(color: _terra, shape: BoxShape.circle))),
               ]),
             ),
-            // Account avatar — aligned with the X button in drawer
             GestureDetector(
               onTap: onAccount,
               child: Container(
@@ -423,9 +427,15 @@ class _EdgeBubble extends StatelessWidget {
   }
 }
 
-class _SidebarPanel extends StatefulWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+//  Sidebar panel — AMÉLIORÉ :
+//    • photo de profil WhatsApp depuis l'API (ou initiales en fallback)
+//    • sélecteur de compte (bottom sheet) avec ajout / changement
+//    • top padding ajusté pour alignement avec les nav items
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SidebarPanel extends ConsumerStatefulWidget {
   final List<RoleNavEntry> entries;
-  final String? user;
   final ValueChanged<String> onSelect;
   final VoidCallback onSignOut;
   final VoidCallback onAccount;
@@ -434,32 +444,86 @@ class _SidebarPanel extends StatefulWidget {
   final double width;
 
   const _SidebarPanel({
-    required this.entries, required this.user,
+    required this.entries,
     required this.onSelect, required this.onSignOut,
     required this.onAccount, required this.onClose,
     required this.opacity, required this.width,
   });
 
   @override
-  State<_SidebarPanel> createState() => _SidebarPanelState();
+  ConsumerState<_SidebarPanel> createState() => _SidebarPanelState();
 }
 
-class _SidebarPanelState extends State<_SidebarPanel> {
+class _SidebarPanelState extends ConsumerState<_SidebarPanel> {
   String _activeKey = '';
+
+  // Bot info fetched from API
+  String _botName    = 'Wabot';
+  String _botPhone   = '';
+  String _picUrl     = '';
+  bool   _fetched    = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.entries.isNotEmpty) _activeKey = widget.entries.first.labelKey;
+    _fetchBotInfo();
+  }
+
+  Future<void> _fetchBotInfo() async {
+    if (_fetched) return;
+    try {
+      final api  = ref.read(apiServiceProvider);
+      final data = await api.getBotStatus();
+      if (mounted) {
+        setState(() {
+          _botName  = (data['name'] as String? ?? 'Wabot').isNotEmpty
+              ? (data['name'] as String) : 'Wabot';
+          _botPhone = data['phoneNumber'] as String? ?? '';
+          _picUrl   = data['profilePicUrl'] as String? ?? '';
+          _fetched  = true;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _fetched = true);
+    }
+  }
+
+  /// Initiales à partir du nom du bot
+  String get _initials {
+    final parts = _botName.trim().split(' ');
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    if (_botName.length >= 2) return _botName.substring(0, 2).toUpperCase();
+    return _botName.toUpperCase();
+  }
+
+  /// Bottom-sheet : sélecteur / gestionnaire de comptes
+  void _showAccountSwitcher(BuildContext ctx) {
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: const Color(0xFF111316),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _AccountSwitcherSheet(
+        currentName:  _botName,
+        currentPhone: _botPhone,
+        picUrl:       _picUrl,
+        onAddAccount: () {
+          Navigator.pop(ctx);
+          widget.onAccount();
+        },
+      ),
+    );
   }
 
   List<_NavGroup> get _groups {
     final entries = widget.entries;
     if (entries.isEmpty) return [];
-    final main   = entries.take(math.min(5, entries.length)).toList();
-    final rest   = entries.skip(main.length).toList();
+    final main = entries.take(math.min(5, entries.length)).toList();
+    final rest = entries.skip(main.length).toList();
     return [
-      _NavGroup(labelKey: 'nav.main',    entries: main),
+      _NavGroup(labelKey: 'nav.main', entries: main),
       if (rest.isNotEmpty)
         _NavGroup(labelKey: 'nav.other', entries: rest),
     ];
@@ -480,62 +544,95 @@ class _SidebarPanelState extends State<_SidebarPanel> {
             ),
           ),
           child: Stack(children: [
-            // WhatsApp-style colorful background shapes
             CustomPaint(painter: _SidebarPatternPainter(), child: const SizedBox.expand()),
 
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top: account icon + X — properly aligned in same Row
+                // ── Header : photo de profil + infos + bouton X ──
                 SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 16, 12),
+                    padding: const EdgeInsets.fromLTRB(18, 16, 14, 10),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Account circle icon
+                        // Photo de profil WhatsApp (ou initiales)
                         GestureDetector(
-                          onTap: widget.onAccount,
-                          child: Container(
-                            width: 44, height: 44,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                colors: [_terra, _orange],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              boxShadow: [BoxShadow(
-                                color: _terra.withOpacity(.3),
-                                blurRadius: 10, offset: const Offset(0, 4))],
-                            ),
-                            child: const Center(
-                              child: Icon(Icons.person_rounded, color: Colors.white, size: 22),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          onTap: () => _showAccountSwitcher(context),
+                          child: Stack(
                             children: [
-                              const Text('Wabot', style: TextStyle(color: _white, fontSize: 15, fontWeight: FontWeight.w800)),
-                              Text('Administrateur', style: TextStyle(color: _white.withOpacity(.55), fontSize: 11)),
+                              Container(
+                                width: 46, height: 46,
+                                decoration: const BoxDecoration(shape: BoxShape.circle),
+                                clipBehavior: Clip.antiAlias,
+                                child: _picUrl.isNotEmpty
+                                    ? Image.network(
+                                        _picUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => _InitialsAvatar(
+                                            initials: _initials),
+                                      )
+                                    : _InitialsAvatar(initials: _initials),
+                              ),
+                              // Indicateur en ligne (petit point vert)
+                              Positioned(
+                                right: 0, bottom: 0,
+                                child: Container(
+                                  width: 12, height: 12,
+                                  decoration: BoxDecoration(
+                                    color: _terra,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: _menuBg1, width: 2),
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                        // X close button — same height as account circle
+                        const SizedBox(width: 11),
+
+                        // Nom + numéro — tappable pour ouvrir le switcher
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => _showAccountSwitcher(context),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(children: [
+                                  Flexible(
+                                    child: Text(_botName,
+                                        style: const TextStyle(color: _white,
+                                            fontSize: 15, fontWeight: FontWeight.w800),
+                                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.expand_more_rounded,
+                                      color: _muted, size: 16),
+                                ]),
+                                Text(
+                                  _botPhone.isNotEmpty ? _botPhone : 'Administrateur',
+                                  style: TextStyle(
+                                      color: _white.withOpacity(.5), fontSize: 11),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Bouton fermer (X)
                         GestureDetector(
                           onTap: widget.onClose,
                           child: Container(
-                            width: 36, height: 36,
+                            width: 34, height: 34,
                             decoration: BoxDecoration(
-                              color: _white.withOpacity(.12),
+                              color: _white.withOpacity(.10),
                               shape: BoxShape.circle,
-                              border: Border.all(color: _white.withOpacity(.15)),
+                              border: Border.all(color: _white.withOpacity(.14)),
                             ),
-                            child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+                            child: const Icon(Icons.close_rounded,
+                                color: Colors.white, size: 17),
                           ),
                         ),
                       ],
@@ -543,19 +640,20 @@ class _SidebarPanelState extends State<_SidebarPanel> {
                   ),
                 ),
 
-                Container(height: 1,
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                Container(
+                    height: 1,
+                    margin: const EdgeInsets.symmetric(horizontal: 18),
                     color: _white.withOpacity(.08)),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
-                // Nav groups
+                // ── Navigation groups ──
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     children: [
                       for (final group in _groups) ...[
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(8, 12, 8, 6),
+                          padding: const EdgeInsets.fromLTRB(8, 10, 8, 5),
                           child: Text(
                             group.labelKey == 'nav.main' ? 'NAVIGATION' : 'OUTILS',
                             style: TextStyle(
@@ -566,10 +664,10 @@ class _SidebarPanelState extends State<_SidebarPanel> {
                         ),
                         for (int i = 0; i < group.entries.length; i++)
                           _SidebarItem(
-                            entry: group.entries[i],
+                            entry:    group.entries[i],
                             selected: group.entries[i].labelKey == _activeKey,
-                            index: i,
-                            opacity: widget.opacity,
+                            index:    i,
+                            opacity:  widget.opacity,
                             onTap: () {
                               setState(() => _activeKey = group.entries[i].labelKey);
                               widget.onSelect(group.entries[i].labelKey);
@@ -586,20 +684,20 @@ class _SidebarPanelState extends State<_SidebarPanel> {
                   ),
                 ),
 
-                // App branding footer
+                // ── Footer branding ──
                 SafeArea(
                   top: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    padding: const EdgeInsets.fromLTRB(18, 6, 18, 14),
                     child: Row(children: [
-                      const Icon(Icons.chat_rounded, size: 16, color: _terra),
-                      const SizedBox(width: 8),
+                      const Icon(Icons.chat_rounded, size: 15, color: _terra),
+                      const SizedBox(width: 7),
                       Text(AppConfig.appName,
-                          style: TextStyle(color: _white.withOpacity(.5),
-                              fontSize: 12, fontWeight: FontWeight.w600)),
+                          style: TextStyle(color: _white.withOpacity(.45),
+                              fontSize: 11, fontWeight: FontWeight.w600)),
                       const Spacer(),
                       Text('v${AppConfig.appVersion}',
-                          style: TextStyle(color: _white.withOpacity(.25), fontSize: 10)),
+                          style: TextStyle(color: _white.withOpacity(.22), fontSize: 9)),
                     ]),
                   ),
                 ),
@@ -611,6 +709,166 @@ class _SidebarPanelState extends State<_SidebarPanel> {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Avatar initiales
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _InitialsAvatar extends StatelessWidget {
+  final String initials;
+  const _InitialsAvatar({required this.initials});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        colors: [_terra, _orange],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+    ),
+    child: Center(
+      child: Text(initials,
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Bottom-sheet : sélecteur de compte
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AccountSwitcherSheet extends StatelessWidget {
+  final String currentName;
+  final String currentPhone;
+  final String picUrl;
+  final VoidCallback onAddAccount;
+
+  const _AccountSwitcherSheet({
+    required this.currentName,
+    required this.currentPhone,
+    required this.picUrl,
+    required this.onAddAccount,
+  });
+
+  String get _initials {
+    final parts = currentName.trim().split(' ');
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    if (currentName.length >= 2) return currentName.substring(0, 2).toUpperCase();
+    return currentName.isNotEmpty ? currentName[0].toUpperCase() : 'W';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // Handle bar
+        Container(
+          width: 38, height: 4,
+          decoration: BoxDecoration(
+            color: Colors.white24,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // Title
+        Row(children: [
+          const Text('Comptes',
+              style: TextStyle(color: _ink, fontSize: 17,
+                  fontWeight: FontWeight.w800)),
+          const Spacer(),
+          // Bouton "Ajouter un compte"
+          GestureDetector(
+            onTap: onAddAccount,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: _terra.withOpacity(.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: _terra.withOpacity(.3)),
+              ),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.add_rounded, size: 15, color: _terra),
+                SizedBox(width: 4),
+                Text('Ajouter', style: TextStyle(
+                    color: _terra, fontSize: 12, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 16),
+
+        // Compte actuel
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1D21),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _terra.withOpacity(.25)),
+          ),
+          child: Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: const BoxDecoration(shape: BoxShape.circle),
+              clipBehavior: Clip.antiAlias,
+              child: picUrl.isNotEmpty
+                  ? Image.network(picUrl, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _InitialsAvatar(initials: _initials))
+                  : _InitialsAvatar(initials: _initials),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(currentName, style: const TextStyle(
+                    color: _ink, fontSize: 14, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(currentPhone.isNotEmpty ? currentPhone : 'Compte principal',
+                    style: const TextStyle(color: _muted, fontSize: 12)),
+              ],
+            )),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _terra.withOpacity(.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text('Actif',
+                  style: TextStyle(color: _terra, fontSize: 11,
+                      fontWeight: FontWeight.w700)),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 14),
+
+        // Info — multi-comptes à venir
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(.04),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: const Row(children: [
+            Icon(Icons.info_outline_rounded, size: 15, color: _muted),
+            SizedBox(width: 8),
+            Expanded(child: Text(
+              'La gestion multi-comptes arrive bientôt. Tu pourras gérer plusieurs bots WhatsApp depuis une seule app.',
+              style: TextStyle(color: _muted, fontSize: 12),
+            )),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Sidebar navigation item
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _NavGroup {
   final String labelKey;
@@ -725,35 +983,34 @@ class _SidebarLogoutItem extends StatelessWidget {
   }
 }
 
-// WhatsApp-style sidebar background — colorful green shapes
+// ─────────────────────────────────────────────────────────────────────────────
+//  Background pattern (WhatsApp-style blobs)
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _SidebarPatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Large blurred circle top-left (like WhatsApp green blob)
     final p1 = Paint()
       ..color = const Color(0xFF25D366).withOpacity(.12)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 60);
     canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.12), 100, p1);
 
-    // Large blurred circle bottom-right
     final p2 = Paint()
       ..color = const Color(0xFF128C7E).withOpacity(.10)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 80);
     canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.75), 130, p2);
 
-    // Medium circle middle
     final p3 = Paint()
       ..color = const Color(0xFF34E07E).withOpacity(.07)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 40);
     canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.45), 70, p3);
 
-    // Diamond grid overlay (subtle)
     final pg = Paint()
       ..color = const Color(0xFF25D366).withOpacity(.05)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
     const sp = 44.0;
-    final cols = (size.width / sp).ceil() + 1;
+    final cols = (size.width  / sp).ceil() + 1;
     final rows = (size.height / sp).ceil() + 1;
     for (int r = 0; r < rows; r++) {
       for (int c = 0; c < cols; c++) {
@@ -777,6 +1034,10 @@ class _SidebarPatternPainter extends CustomPainter {
   @override
   bool shouldRepaint(_) => false;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Placeholder page
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _Placeholder extends StatelessWidget {
   final String title;
@@ -804,14 +1065,16 @@ class _Placeholder extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Text(title, style: const TextStyle(color: _ink, fontSize: 17, fontWeight: FontWeight.w700)),
+              Text(title, style: const TextStyle(color: _ink, fontSize: 17,
+                  fontWeight: FontWeight.w700)),
             ]),
           ),
           const Expanded(child: Center(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.construction_rounded, color: _muted, size: 40),
               SizedBox(height: 12),
-              Text('Page en construction', style: TextStyle(color: _muted, fontSize: 14)),
+              Text('Page en construction',
+                  style: TextStyle(color: _muted, fontSize: 14)),
             ]),
           )),
         ]),
