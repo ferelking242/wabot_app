@@ -1,11 +1,11 @@
 'use strict';
 process.env.NODE_ENV = 'production';
 
-// ── nodejs-mobile polyfills ────────────────────────────────────────────────
+// ââ nodejs-mobile polyfills ââââââââââââââââââââââââââââââââââââââââââââââââ
 // nodejs-mobile is compiled without ICU and without full Web APIs.
 // All patches must run BEFORE any require() so baileys never sees the broken APIs.
 
-// 1. TextDecoder: `fatal` option not supported without ICU — strip it silently.
+// 1. TextDecoder: `fatal` option not supported without ICU â strip it silently.
 ;(function patchTextDecoder() {
   if (typeof TextDecoder === 'undefined') return;
   const _Native = TextDecoder;
@@ -27,11 +27,11 @@ process.env.NODE_ENV = 'production';
       return;
     }
   } catch (_) {}
-  // Pure-JS WebCrypto polyfill — covers all SubtleCrypto operations baileys needs.
+  // Pure-JS WebCrypto polyfill â covers all SubtleCrypto operations baileys needs.
   const { Crypto } = require('@peculiar/webcrypto');
   globalThis.crypto = new Crypto();
 })();
-// ── end polyfills ──────────────────────────────────────────────────────────
+// ââ end polyfills ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 const { makeWASocket, DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } =
   require('@whiskeysockets/baileys');
@@ -71,14 +71,14 @@ app.use('/v1', (req, res, next) => {
   next();
 });
 
-// ── State ─────────────────────────────────────────────────────────────────────
+// ââ State âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 let sock            = null;
 let lastQr          = null;
 let lastQrTimestamp = null;
 let isConnected     = false;
 let botStarting     = false;
 
-// ── WhatsApp Connection ───────────────────────────────────────────────────────
+// ââ WhatsApp Connection âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function startBot() {
   if (botStarting) return;
   botStarting = true;
@@ -90,7 +90,7 @@ async function startBot() {
       version,
       auth:                         state,
       printQRInTerminal:            false,
-      browser:                      ['Wabot', 'Android', '1.0'],
+      browser:                      ['Wabot', 'Chrome', '120.0.0.0'],
       connectTimeoutMs:             60_000,
       keepAliveIntervalMs:          25_000,
       retryRequestDelayMs:          2_000,
@@ -117,10 +117,10 @@ async function startBot() {
         botStarting = false;
         const code  = lastDisconnect?.error?.output?.statusCode;
         if (code !== DisconnectReason.loggedOut) {
-          console.log('[Wabot] Reconnecting in 5s…');
+          console.log('[Wabot] Reconnecting in 5sâ¦');
           setTimeout(startBot, 5_000);
         } else {
-          console.log('[Wabot] Logged out — delete auth_state to re-pair');
+          console.log('[Wabot] Logged out â delete auth_state to re-pair');
         }
       }
     });
@@ -131,7 +131,7 @@ async function startBot() {
   }
 }
 
-// ── Routes ────────────────────────────────────────────────────────────────────
+// ââ Routes ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 app.get('/api/v1/health', (_req, res) =>
   res.json({ ok: true, version: '1.0.0-android' }));
@@ -165,7 +165,7 @@ app.get('/api/v1/instance/qr', async (_req, res) => {
   if (!lastQr)
     return res.status(503).json({
       success: false, error: 'QR_NOT_AVAILABLE',
-      message: 'QR not yet generated. Bot starting…',
+      message: 'QR not yet generated. Bot startingâ¦',
     });
   const ageSeconds = Math.floor((Date.now() - lastQrTimestamp) / 1000);
   if (ageSeconds > 60)
@@ -204,14 +204,14 @@ app.post('/api/v1/instance/pair', async (req, res) => {
 });
 
 app.post('/api/v1/instance/reconnect', (req, res) => {
-  res.json({ success: true, message: 'Reconnecting…' });
+  res.json({ success: true, message: 'Reconnectingâ¦' });
   isConnected = false;
   botStarting = false;
   sock        = null;
   setTimeout(startBot, 500);
 });
 
-// ── Start ─────────────────────────────────────────────────────────────────────
+// ââ Start âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`[Wabot-Android] API server started on port ${PORT}`);
   startBot();
