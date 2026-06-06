@@ -45,17 +45,25 @@ jobs:
       - name: Clone WABOT core
         run: |
           git clone --depth=1 https://github.com/ferelking242/WABOT.git /tmp/wabot-core
-          echo "WABOT cloné"
+          echo "WABOT cloné — contenu:"
+          ls /tmp/wabot-core/
 
       - name: Copier WABOT dans wabot-android-src
         run: |
           mkdir -p wabot-android-src/wabot-core
-          cp -r /tmp/wabot-core/commands   wabot-android-src/wabot-core/
-          cp -r /tmp/wabot-core/lib        wabot-android-src/wabot-core/
-          cp -r /tmp/wabot-core/config     wabot-android-src/wabot-core/
-          cp -r /tmp/wabot-core/locales    wabot-android-src/wabot-core/ 2>/dev/null || true
-          cp    /tmp/wabot-core/main.js    wabot-android-src/wabot-core/ 2>/dev/null || true
-          echo "WABOT copié"
+          for dir in commands lib config locales serena-assistant services api data scripts; do
+            if [ -d "/tmp/wabot-core/$dir" ]; then
+              cp -r /tmp/wabot-core/$dir wabot-android-src/wabot-core/
+              echo "  ✓ $dir"
+            fi
+          done
+          for f in main.js index.js; do
+            if [ -f "/tmp/wabot-core/$f" ]; then
+              cp /tmp/wabot-core/$f wabot-android-src/wabot-core/
+              echo "  ✓ $f"
+            fi
+          done
+          echo "WABOT copié. Contenu:"
           ls wabot-android-src/wabot-core/
 
       - name: Appliquer les patches Android
@@ -67,12 +75,19 @@ jobs:
 
       - name: Bundle wabot-android avec esbuild
         working-directory: wabot-android-src
-        run: npm run build
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee /tmp/esbuild.log || {
+            echo "=== esbuild FAILED — logs complets ==="
+            cat /tmp/esbuild.log
+            exit 1
+          }
+          ls -lh bundle.js && echo "bundle.js créé: $(wc -c < bundle.js) bytes"
 
       - name: Copier le bundle dans Flutter assets
         run: |
           cp wabot-android-src/bundle.js assets/nodejs-project/main.js
-          echo "Bundle size $(wc -c < assets/nodejs-project/main.js) bytes"
+          echo "Bundle copié: $(wc -c < assets/nodejs-project/main.js) bytes"
 
       - name: Cache Node.js Mobile binaries
         id: cache-nodejs-mobile
@@ -97,6 +112,7 @@ jobs:
           unzip /tmp/nodejs-mobile.zip "include/node/*" -d /tmp/nm-hdrs/
           cp -r /tmp/nm-hdrs/include/node/* android/app/src/main/cpp/node_include/node/
           echo "Node.js Mobile arm64 ready"
+          ls -lh android/app/src/main/jniLibs/arm64-v8a/
 
       - name: Bundle libc++_shared.so from NDK
         run: |
@@ -106,7 +122,9 @@ jobs:
             cp "$LIBCPP" android/app/src/main/jniLibs/arm64-v8a/libc++_shared.so
             echo "libc++_shared.so ok"
           else
-            echo "ERROR: libc++_shared.so not found" && exit 1
+            echo "ERROR: libc++_shared.so not found at $LIBCPP"
+            find $NDK_PATH -name "libc++_shared.so" 2>/dev/null | head -5
+            exit 1
           fi
 
       - name: Flutter pub get
