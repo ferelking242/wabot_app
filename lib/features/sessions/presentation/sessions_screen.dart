@@ -1,78 +1,162 @@
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
-import '../../../shared/widgets/page_scaffold.dart';
+  import 'package:flutter_riverpod/flutter_riverpod.dart';
+  import '../../../services/api_service.dart';
 
-const _g = Color(0xFF25D366); const _gd = Color(0xFF128C7E);
-const _ink = Color(0xFFF2F3F5); const _muted = Color(0xFF8A9199);
-const _border = Color(0xFF1E2128); const _card = Color(0xFF111316);
+  const _g      = Color(0xFF25D366);
+  const _ink    = Color(0xFFF2F3F5);
+  const _muted  = Color(0xFF8A9199);
+  const _border = Color(0xFF1E2128);
+  const _card   = Color(0xFF111316);
+  const _bg     = Color(0xFF0D0E11);
 
-class SessionsScreen extends StatefulWidget {
-  const SessionsScreen({super.key});
-  @override State<SessionsScreen> createState() => _SS();
-}
-class _SS extends State<SessionsScreen> {
-  final _sessions = <_Sess>[
-    _Sess('+33 6 12 34 56 78', true,  432),
-    _Sess('+33 7 98 76 54 32', true,  815),
-    _Sess('+242 06 001 0001',  false, 0),
-  ];
+  class SessionsScreen extends ConsumerStatefulWidget {
+    const SessionsScreen({super.key});
+    @override
+    ConsumerState<SessionsScreen> createState() => _SessionsScreenState();
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final active = _sessions.where((s) => s.connected).length;
-    return PageScaffold(
-      title: 'Sessions WhatsApp',
-      subtitle: '$active connectée${active > 1 ? "s" : ""}',
-      actions: [ActionButton(label: 'Nouvelle session', icon: Icons.add_rounded, primary: true, onTap: () => _qr(context))],
-      child: Column(children: [
-        for (final s in _sessions) ...[_SessionCard(sess: s, onDelete: () => setState(() => _sessions.remove(s))), const SizedBox(height: 10)],
+  class _SessionsScreenState extends ConsumerState<SessionsScreen> {
+    Map<String, dynamic>? _status;
+    bool _loading = true;
+    String? _error;
+
+    @override
+    void initState() {
+      super.initState();
+      _load();
+    }
+
+    Future<void> _load() async {
+      setState(() { _loading = true; _error = null; });
+      try {
+        final api = ref.read(apiServiceProvider);
+        final data = await api.getInstanceStatus();
+        if (mounted) setState(() { _status = data; _loading = false; });
+      } catch (e) {
+        if (mounted) setState(() { _error = e.toString(); _loading = false; });
+      }
+    }
+
+    @override
+    Widget build(BuildContext context) {
+      final inst      = (_status?['instance'] as Map<String, dynamic>?) ?? {};
+      final connected = inst['connected'] == true;
+      final rawPhone  = inst['phone'] as String? ?? '';
+      final phone     = rawPhone.replaceAll(RegExp(r':.*@'), '@').replaceAll('@s.whatsapp.net', '');
+      final name      = inst['name'] as String? ?? '';
+
+      return Scaffold(
+        backgroundColor: _bg,
+        body: RefreshIndicator(
+          color: _g,
+          onRefresh: _load,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+            children: [
+              Row(children: [
+                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Sessions WhatsApp',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: _ink)),
+                  SizedBox(height: 4),
+                  Text('Appareils connectés à ce bot',
+                    style: TextStyle(color: _muted, fontSize: 12)),
+                ])),
+                if (_loading)
+                  const SizedBox(width: 20, height: 20,
+                    child: CircularProgressIndicator(color: _g, strokeWidth: 2)),
+              ]),
+              const SizedBox(height: 20),
+              if (_error != null)
+                _ErrorCard(message: _error!, onRetry: _load)
+              else if (!connected)
+                const _EmptyCard()
+              else
+                _SessionCard(phone: phone, name: name),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  class _SessionCard extends StatelessWidget {
+    final String phone;
+    final String name;
+    const _SessionCard({required this.phone, required this.name});
+
+    @override
+    Widget build(BuildContext context) => Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _card, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border)),
+      child: Row(children: [
+        Container(width: 44, height: 44,
+          decoration: BoxDecoration(color: _g.withOpacity(.15), borderRadius: BorderRadius.circular(12)),
+          child: const Icon(Icons.phone_android_rounded, size: 22, color: _g)),
+        const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(phone.isNotEmpty ? '+$phone' : 'Connecté',
+            style: const TextStyle(fontSize: 14, color: _ink, fontWeight: FontWeight.w700)),
+          if (name.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(name, style: const TextStyle(fontSize: 12, color: _muted)),
+          ],
+          const SizedBox(height: 4),
+          Row(children: [
+            Container(width: 7, height: 7, decoration: const BoxDecoration(color: _g, shape: BoxShape.circle)),
+            const SizedBox(width: 5),
+            const Text('Connectée · WhatsApp actif', style: TextStyle(fontSize: 11.5, color: _muted)),
+          ]),
+        ])),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(color: _g.withOpacity(.12), borderRadius: BorderRadius.circular(8)),
+          child: const Text('ACTIF', style: TextStyle(color: _g, fontSize: 10, fontWeight: FontWeight.w800))),
       ]),
     );
   }
 
-  void _qr(BuildContext ctx) {
-    showDialog(context: ctx, builder: (_) => Dialog(
-      backgroundColor: _card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: Padding(padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text('Scanner le QR Code', style: TextStyle(fontSize: 16, color: _ink, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 6),
-        Text('WhatsApp → Appareils liés → Lier un appareil', textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12, color: _muted)),
-        const SizedBox(height: 20),
-        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
-          child: QrImageView(data: 'wabot://new/${DateTime.now().millisecondsSinceEpoch}', version: QrVersions.auto, size: 200, backgroundColor: Colors.white)),
-        const SizedBox(height: 14),
-        Text('En attente de scan…', style: TextStyle(color: _g.withOpacity(.85), fontSize: 12)),
-      ])),
-    ));
+  class _EmptyCard extends StatelessWidget {
+    const _EmptyCard();
+    @override
+    Widget build(BuildContext context) => Container(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+      decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border)),
+      child: const Column(children: [
+        Icon(Icons.phone_android_outlined, size: 48, color: Color(0x668A9199)),
+        SizedBox(height: 14),
+        Text('Aucune session active',
+          style: TextStyle(color: _ink, fontSize: 15, fontWeight: FontWeight.w600)),
+        SizedBox(height: 6),
+        Text("Connectez votre WhatsApp depuis l'écran de jumelage",
+          textAlign: TextAlign.center, style: TextStyle(color: _muted, fontSize: 12)),
+      ]),
+    );
   }
-}
 
-class _Sess { final String phone; bool connected; final int msgs; _Sess(this.phone, this.connected, this.msgs); }
-
-class _SessionCard extends StatelessWidget {
-  final _Sess sess; final VoidCallback onDelete;
-  const _SessionCard({required this.sess, required this.onDelete});
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(14), border: Border.all(color: _border)),
-    child: Row(children: [
-      Container(width: 44, height: 44,
-        decoration: BoxDecoration(color: sess.connected ? _g.withOpacity(.15) : Colors.white10, borderRadius: BorderRadius.circular(12)),
-        child: Icon(Icons.phone_android_rounded, size: 22, color: sess.connected ? _g : _muted)),
-      const SizedBox(width: 14),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(sess.phone, style: const TextStyle(fontSize: 14, color: _ink, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 3),
-        Row(children: [
-          Container(width: 6, height: 6, decoration: BoxDecoration(color: sess.connected ? _g : Colors.grey, shape: BoxShape.circle)),
-          const SizedBox(width: 5),
-          Text(sess.connected ? 'Connectée · ${sess.msgs} msgs' : 'Déconnectée', style: const TextStyle(fontSize: 11.5, color: _muted)),
-        ]),
-      ])),
-      IconButton(icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFFF6B6B)), onPressed: onDelete),
-    ]),
-  );
-}
+  class _ErrorCard extends StatelessWidget {
+    final String message;
+    final VoidCallback onRetry;
+    const _ErrorCard({required this.message, required this.onRetry});
+    @override
+    Widget build(BuildContext context) => Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF3D1515))),
+      child: Column(children: [
+        const Icon(Icons.error_outline_rounded, color: Color(0xFFFF6B6B), size: 36),
+        const SizedBox(height: 10),
+        const Text('Bot non joignable', style: TextStyle(color: _ink, fontWeight: FontWeight.w700, fontSize: 15)),
+        const SizedBox(height: 6),
+        const Text('Vérifiez que le bot est démarré', style: TextStyle(color: _muted, fontSize: 12)),
+        const SizedBox(height: 14),
+        GestureDetector(onTap: onRetry,
+          child: Container(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            decoration: BoxDecoration(color: _g.withOpacity(.15), borderRadius: BorderRadius.circular(8)),
+            child: const Text('Réessayer', style: TextStyle(color: _g, fontWeight: FontWeight.w700)))),
+      ]),
+    );
+  }
+  
