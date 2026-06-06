@@ -12,6 +12,7 @@ import '../features/devices/presentation/pairing_screen.dart';
 import '../features/analytics/presentation/analytics_screen.dart';
 import '../features/logs/presentation/logs_screen.dart';
 import '../features/automation/presentation/automation_screen.dart';
+  import '../features/bot/presentation/bot_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
 
