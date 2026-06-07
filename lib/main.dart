@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -7,15 +6,38 @@ import 'package:responsive_framework/responsive_framework.dart';
 import 'core/config/app_config.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/bot_service.dart';
+import 'core/services/log_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'services/storage_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ── Logs professionnels (fichier + mémoire) ──────────────────────────
+  await LogService.I.init();
+  LogService.info('Main', 'Wabot démarrage — v1.1.0');
+
+  // Capturer les erreurs Flutter non gérées
+  FlutterError.onError = (details) {
+    LogService.error('FlutterError',
+        details.exceptionAsString(),
+        err: details.exception,
+        stack: details.stack);
+    FlutterError.presentError(details);
+  };
+
+  // Capturer les erreurs async non gérées
+  PlatformDispatcher.instance.onError = (error, stack) {
+    LogService.error('AsyncError', error.toString(), err: error, stack: stack);
+    return false;
+  };
+
   await StorageService.init();
-  // Start embedded bot on Android (non-blocking)
+
+  // Démarrage bot embedded Android (non-bloquant)
   unawaited(BotService.startIfNeeded());
+
   runApp(const ProviderScope(child: WabotApp()));
 }
 

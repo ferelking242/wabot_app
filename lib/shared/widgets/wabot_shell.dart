@@ -3,6 +3,7 @@ import 'package:responsive_framework/responsive_framework.dart';
 import '../desktop_shell/desktop_shell.dart';
 import '../mobile_shell/mobile_shell.dart';
 import '../widgets/responsive_role_shell.dart' show RoleNavEntry;
+import '../../features/bot/presentation/bot_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/sessions/presentation/sessions_screen.dart';
 import '../../features/chats/presentation/chats_screen.dart';
@@ -26,6 +27,7 @@ class WabotShell extends StatelessWidget {
       DesktopNavItem(icon: Icons.receipt_long_outlined,  labelKey: 'Logs',        page: LogsScreen()),
     ]),
     DesktopNavGroup(labelKey: 'bot', items: const [
+      DesktopNavItem(icon: Icons.smart_toy_outlined,     labelKey: 'Bot',         page: BotScreen()),
       DesktopNavItem(icon: Icons.terminal_outlined,      labelKey: 'Commandes',   page: CommandsScreen()),
       DesktopNavItem(icon: Icons.book_outlined,          labelKey: 'Docs',        page: DocsScreen()),
       DesktopNavItem(icon: Icons.bar_chart_outlined,     labelKey: 'Analytics',   page: AnalyticsScreen()),
@@ -36,6 +38,7 @@ class WabotShell extends StatelessWidget {
 
   static const _dock = [
     RoleNavEntry(icon: Icons.dashboard_outlined,     labelKey: 'Dashboard',  page: DashboardScreen()),
+    RoleNavEntry(icon: Icons.smart_toy_outlined,     labelKey: 'Bot',        page: BotScreen()),
     RoleNavEntry(icon: Icons.chat_outlined,          labelKey: 'Chats',      page: ChatsScreen()),
     RoleNavEntry(icon: Icons.groups_outlined,        labelKey: 'Groupes',    page: GroupsScreen()),
     RoleNavEntry(icon: Icons.book_outlined,          labelKey: 'Docs',       page: DocsScreen()),
@@ -43,6 +46,7 @@ class WabotShell extends StatelessWidget {
 
   static const _drawer = [
     RoleNavEntry(icon: Icons.dashboard_outlined,     labelKey: 'Dashboard',   page: DashboardScreen()),
+    RoleNavEntry(icon: Icons.smart_toy_outlined,     labelKey: 'Bot',         page: BotScreen()),
     RoleNavEntry(icon: Icons.phone_android_outlined, labelKey: 'Sessions',    page: SessionsScreen()),
     RoleNavEntry(icon: Icons.chat_outlined,          labelKey: 'Chats',       page: ChatsScreen()),
     RoleNavEntry(icon: Icons.groups_outlined,        labelKey: 'Groupes',     page: GroupsScreen()),

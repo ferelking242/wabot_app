@@ -1,6 +1,8 @@
 package com.aivos.wabot.app
 
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -12,10 +14,9 @@ import java.io.FileOutputStream
 class MainActivity : FlutterActivity() {
 
     companion object {
-        private const val TAG         = "WabotMain"
-        private const val BOT_CHANNEL = "com.aivos.wabot/bot_engine"
-        private const val BOT_EVENTS  = "com.aivos.wabot/bot_events"
-        // Flutter bundles assets under flutter_assets/ inside the APK's Android assets
+        private const val TAG                  = "WabotMain"
+        private const val BOT_CHANNEL          = "com.aivos.wabot/bot_engine"
+        private const val BOT_EVENTS           = "com.aivos.wabot/bot_events"
         private const val FLUTTER_ASSETS_PREFIX = "flutter_assets/assets/nodejs-project"
     }
 
@@ -32,9 +33,35 @@ class MainActivity : FlutterActivity() {
                             ?: "${filesDir.absolutePath}/wabot"
                         startEmbeddedBot(dataDir, result)
                     }
-                    "stopBot"   -> result.success(true)
-                    "isRunning" -> result.success(BotLauncher.started)
-                    else        -> result.notImplemented()
+                    "stopBot"  -> result.success(true)
+                    "isRunning" -> result.success(BotLauncher.running)
+
+                    // Démarrer le service foreground (maintient le bot en vie)
+                    "startForegroundService" -> {
+                        try {
+                            val intent = Intent(this, WabotForegroundService::class.java)
+                            startForegroundService(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "startForegroundService failed: ${e.message}")
+                            result.success(false)
+                        }
+                    }
+
+                    // Arrêter le service foreground
+                    "stopForegroundService" -> {
+                        try {
+                            stopService(Intent(this, WabotForegroundService::class.java))
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    }
+
+                    // Retourner le SDK Android (pour les permissions runtime)
+                    "getSdkInt" -> result.success(Build.VERSION.SDK_INT.toString())
+
+                    else -> result.notImplemented()
                 }
             }
 
@@ -51,6 +78,16 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // S'assurer que le service foreground tourne quand l'app est au premier plan
+        if (BotLauncher.started) {
+            try {
+                startForegroundService(Intent(this, WabotForegroundService::class.java))
+            } catch (_: Exception) {}
+        }
+    }
+
     private fun startEmbeddedBot(dataDir: String, result: MethodChannel.Result) {
         if (BotLauncher.started) { result.success(true); return }
         try {
@@ -58,25 +95,26 @@ class MainActivity : FlutterActivity() {
             val nodeDir = File(filesDir, "nodejs-project")
             val mainJs  = File(nodeDir, "main.js")
 
-            // Re-extract if main.js is missing OR if the app was updated
             if (!mainJs.exists() || shouldUpdateNodeProject()) {
-                Log.d(TAG, "Extracting nodejs-project (mainJs.exists=${mainJs.exists()}, shouldUpdate=${shouldUpdateNodeProject()})")
+                Log.d(TAG, "Extraction nodejs-project...")
                 extractNodeProject(nodeDir)
-
-                // Verify extraction succeeded before proceeding
                 if (!mainJs.exists()) {
-                    Log.e(TAG, "Extraction failed — main.js still missing at ${mainJs.absolutePath}")
-                    result.error("EXTRACT_FAILED", "Failed to extract nodejs-project/main.js from APK assets", null)
+                    result.error("EXTRACT_FAILED", "main.js manquant après extraction", null)
                     return
                 }
                 markNodeProjectUpdated()
-                Log.d(TAG, "Extraction complete: ${mainJs.absolutePath} (${mainJs.length()} bytes)")
-            } else {
-                Log.d(TAG, "nodejs-project up to date, skipping extraction")
             }
 
             BotEngine.registerNodeDataDirPath(dataDir)
             BotLauncher.launch(mainJs.absolutePath, dataDir)
+
+            // Démarrer le ForegroundService immédiatement
+            try {
+                startForegroundService(Intent(this, WabotForegroundService::class.java))
+            } catch (e: Exception) {
+                Log.w(TAG, "ForegroundService non démarré: ${e.message}")
+            }
+
             result.success(true)
         } catch (e: Exception) {
             Log.e(TAG, "startEmbeddedBot failed: ${e.message}", e)
@@ -84,28 +122,20 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    /**
-     * Extracts files from Flutter's assets (stored under flutter_assets/ in the APK)
-     * into the app's internal files directory.
-     *
-     * Flutter bundles declared assets at:  flutter_assets/<pubspec-declared-path>
-     * e.g. assets/nodejs-project/main.js → flutter_assets/assets/nodejs-project/main.js
-     */
     private fun extractNodeProject(destDir: File) {
         destDir.mkdirs()
         val list = try {
             assets.list(FLUTTER_ASSETS_PREFIX)
         } catch (e: Exception) {
-            Log.e(TAG, "assets.list($FLUTTER_ASSETS_PREFIX) failed: ${e.message}")
+            Log.e(TAG, "assets.list failed: ${e.message}")
             null
         }
 
         if (list.isNullOrEmpty()) {
-            Log.e(TAG, "No files found under $FLUTTER_ASSETS_PREFIX — APK assets may not contain nodejs-project")
+            Log.e(TAG, "Aucun fichier dans $FLUTTER_ASSETS_PREFIX")
             return
         }
 
-        Log.d(TAG, "Found ${list.size} file(s) in $FLUTTER_ASSETS_PREFIX: ${list.joinToString()}")
         for (filename in list) {
             val src = "$FLUTTER_ASSETS_PREFIX/$filename"
             val dst = File(destDir, filename)
@@ -113,24 +143,27 @@ class MainActivity : FlutterActivity() {
                 assets.open(src).use { input ->
                     FileOutputStream(dst).use { out -> input.copyTo(out) }
                 }
-                Log.d(TAG, "Extracted: $filename (${dst.length()} bytes)")
+                Log.d(TAG, "Extrait: $filename (${dst.length()} bytes)")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to extract $filename: ${e.message}")
+                Log.e(TAG, "Extraction échouée pour $filename: ${e.message}")
             }
         }
     }
 
     private fun shouldUpdateNodeProject(): Boolean {
         val prefs = getSharedPreferences("wabot_prefs", Context.MODE_PRIVATE)
-        return prefs.getString("node_project_version", "") != appVersion()
+        val stored = prefs.getString("node_project_version", null)
+        val current = try {
+            packageManager.getPackageInfo(packageName, 0).longVersionCode.toString()
+        } catch (_: Exception) { "0" }
+        return stored != current
     }
 
     private fun markNodeProjectUpdated() {
-        getSharedPreferences("wabot_prefs", Context.MODE_PRIVATE).edit()
-            .putString("node_project_version", appVersion()).apply()
+        val current = try {
+            packageManager.getPackageInfo(packageName, 0).longVersionCode.toString()
+        } catch (_: Exception) { "0" }
+        getSharedPreferences("wabot_prefs", Context.MODE_PRIVATE)
+            .edit().putString("node_project_version", current).apply()
     }
-
-    private fun appVersion(): String = try {
-        packageManager.getPackageInfo(packageName, 0).versionName ?: "1.0"
-    } catch (_: Exception) { "1.0" }
 }
