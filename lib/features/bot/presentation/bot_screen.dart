@@ -89,8 +89,6 @@ class _BotScreenState extends ConsumerState<BotScreen>
     try {
       final di = DeviceInfoPlugin();
       final info = await di.androidInfo;
-      final totalRam = info.totalMemory ?? 0;
-      final ramGb = totalRam > 0 ? (totalRam / 1073741824).toStringAsFixed(1) : '?';
       if (mounted) {
         setState(() {
           _deviceInfo = {
@@ -99,7 +97,7 @@ class _BotScreenState extends ConsumerState<BotScreen>
             'cpu':      info.hardware,
             'cores':    _getCpuCores(),
             'abi':      info.supportedAbis.isNotEmpty ? info.supportedAbis.first : '?',
-            'ram':      '$ramGb GB',
+            'ram':      '?',
             'android':  info.version.release,
             'sdk':      info.version.sdkInt.toString(),
             'board':    info.board,
@@ -842,7 +840,7 @@ class _DeviceInfoBox extends StatelessWidget {
                   value: info['abi'] as String? ?? '?', color: _purple),
             ]),
             const SizedBox(height: 8),
-            _DeviceTileWide(icon: Icons.circuit_board_outlined, label: 'Board / Device',
+            _DeviceTileWide(icon: Icons.developer_board_outlined, label: 'Board / Device',
                 value: '${info['board'] ?? '?'} / ${info['device'] ?? '?'}'),
           ]),
         ),
