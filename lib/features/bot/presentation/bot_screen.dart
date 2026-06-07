@@ -1,5 +1,7 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:convert' show LineSplitter;
+import 'dart:io' show File;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -83,12 +85,13 @@ class _BotScreenState extends ConsumerState<BotScreen>
 
   // ── Infos matérielles du téléphone ────────────────────────────────────────
   Future<void> _loadDeviceInfo() async {
+    if (kIsWeb) return;
     try {
       final di = DeviceInfoPlugin();
-      if (Platform.isAndroid) {
-        final info = await di.androidInfo;
-        final totalRam = info.totalMemory ?? 0;
-        final ramGb = totalRam > 0 ? (totalRam / 1073741824).toStringAsFixed(1) : '?';
+      final info = await di.androidInfo;
+      final totalRam = info.totalMemory ?? 0;
+      final ramGb = totalRam > 0 ? (totalRam / 1073741824).toStringAsFixed(1) : '?';
+      if (mounted) {
         setState(() {
           _deviceInfo = {
             'model':    '${info.brand} ${info.model}',
@@ -96,7 +99,7 @@ class _BotScreenState extends ConsumerState<BotScreen>
             'cpu':      info.hardware,
             'cores':    _getCpuCores(),
             'abi':      info.supportedAbis.isNotEmpty ? info.supportedAbis.first : '?',
-            'ram':      '${ramGb} GB',
+            'ram':      '$ramGb GB',
             'android':  info.version.release,
             'sdk':      info.version.sdkInt.toString(),
             'board':    info.board,
@@ -111,16 +114,27 @@ class _BotScreenState extends ConsumerState<BotScreen>
   }
 
   String _getCpuCores() {
+    if (kIsWeb) return '?';
     try {
-      final cpuInfo = File('/proc/cpuinfo').readAsStringSync();
-      final matches = RegExp(r'^processor', multiLine: true).allMatches(cpuInfo);
-      return '${matches.length} cœurs';
+      // Lit /proc/cpuinfo disponible sur Android/Linux
+      // ignore: avoid_slow_async_io
+      final lines = const LineSplitter().convert(
+        _readFileSync('/proc/cpuinfo'));
+      final count = lines.where((l) => l.startsWith('processor')).length;
+      return count > 0 ? '$count cœurs' : '?';
     } catch (_) {
       return '?';
     }
   }
 
+  String _readFileSync(String filePath) {
+    try {
+      return File(filePath).readAsStringSync();
+    } catch (_) { return ''; }
+  }
+
   Future<void> _loadRomInfo(Function(void Function()) setS) async {
+    if (kIsWeb) return;
     try {
       final stats = await StatFs.getExternalStorageStats();
       if (mounted) {
@@ -205,10 +219,16 @@ class _BotScreenState extends ConsumerState<BotScreen>
 
   Future<void> _downloadLogs() async {
     try {
+      if (kIsWeb) {
+        // Sur web : copie dans le presse-papier uniquement
+        await Clipboard.setData(ClipboardData(text: _logsText));
+        _showSnack('Logs copiés (téléchargement indispo sur web) ✓', _g);
+        return;
+      }
       final dir  = await getTemporaryDirectory();
-      final file = File('${dir.path}/wabot_logs_${DateTime.now().millisecondsSinceEpoch}.txt');
-      await file.writeAsString(_logsText);
-      await Share.shareXFiles([XFile(file.path)], text: 'Wabot Logs');
+      final path = '${dir.path}/wabot_logs_${DateTime.now().millisecondsSinceEpoch}.txt';
+      await File(path).writeAsString(_logsText);
+      await Share.shareXFiles([XFile(path)], text: 'Wabot Logs');
     } catch (e) {
       _showSnack('Erreur export: $e', _red);
     }
