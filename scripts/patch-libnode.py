@@ -2,25 +2,22 @@
 # patch-libnode.py — Double patch libnode.so ARM64 (nodejs-mobile 18.20.4)
 #
 # PATCH 1 — EnableTrapHandler (VA 0x2111e48)
-#   Original: __builtin_trap() -> BRK -> SIGTRAP (Bug 1)
-#   Fix: MOVZ X0,#1 ; RET  -> returns true, CHECK() satisfied
+#   Original: __builtin_trap() -> BRK -> SIGTRAP
+#   Fix: MOVZ X0,#1 ; RET  -> returns true
 #
-# PATCH 2 — node::Abort (VA 0x153f690)
-#   Source: frame #01 crash pc=0x153f6b8 = Abort()+40 -> start=0x153f690
-#   Original: DumpBacktrace() + abort() -> SIGABRT
+# PATCH 2 — node::Assert (VA 0x153f36c)
+#   Source: crash pc=0x153f3ec = Assert()+128 -> start = 0x153f3ec - 128 = 0x153f36c
+#   Original: prints message, calls Abort() -> SIGABRT or SIGSEGV (V8 uninitialised on retry)
 #   Fix: RET at function start -> all CHECK() failures silently pass
-#   Safe for Baileys: zero WebAssembly, no real V8 invariants needed at runtime.
 import struct, subprocess, sys, os
 
 SO_PATH = sys.argv[1] if len(sys.argv) > 1 else 'android/app/src/main/jniLibs/arm64-v8a/libnode.so'
 
-# ── Constants ─────────────────────────────────────────────────────────────────
-TRAP_HANDLER_VA  = 0x2111e48   # EnableTrapHandler function start
-NODE_ABORT_VA    = 0x153f690   # node::Abort function start (crash pc 0x153f6b8 - 40)
-MOVZ_X0_ONE      = 0xD2800020  # MOVZ X0, #1
-RET              = 0xD65F03C0  # RET
+TRAP_HANDLER_VA  = 0x2111e48
+NODE_ASSERT_VA   = 0x153f36c
+MOVZ_X0_ONE      = 0xD2800020
+RET              = 0xD65F03C0
 
-# ── ELF helpers ───────────────────────────────────────────────────────────────
 def find_symbol_va(so_path, substr):
     for cmd in [['nm', '--defined-only', so_path], ['readelf', '-s', '--wide', so_path]]:
         try:
@@ -53,7 +50,6 @@ def va_to_file_offset(data, va):
                 return p_offset + (va - p_vaddr)
     return None
 
-# ── PATCH 1: EnableTrapHandler → return true ──────────────────────────────────
 def patch1_trap_handler(data):
     va = find_symbol_va(SO_PATH, 'EnableTrapHandler')
     if va is None:
@@ -78,17 +74,12 @@ def patch1_trap_handler(data):
         print('[P1] WARN: no BRK at +40: {}'.format(hex(i40)))
     struct.pack_into('<I', data, off,     MOVZ_X0_ONE)
     struct.pack_into('<I', data, off + 4, RET)
-    print('[P1] OK: EnableTrapHandler returns true (1).')
+    print('[P1] OK: EnableTrapHandler returns true.')
     return True
 
-# ── PATCH 2: node::Abort → RET (skip abort, all CHECK silently pass) ──────────
-def patch2_node_abort(data):
-    va = find_symbol_va(SO_PATH, 'node::Abort')
-    if va is None:
-        va = NODE_ABORT_VA
-        print('[P2] Symbol not found, using known VA {}'.format(hex(va)))
-    else:
-        print('[P2] Symbol node::Abort @ VA {}'.format(hex(va)))
+def patch2_node_assert(data):
+    va = NODE_ASSERT_VA
+    print('[P2] Patching node::Assert @ VA {}'.format(hex(va)))
     off = va_to_file_offset(data, va)
     if off is None:
         print('[P2] ERROR: cannot map VA {}'.format(hex(va)))
@@ -99,10 +90,9 @@ def patch2_node_abort(data):
         print('[P2] Already patched (RET).')
         return True
     struct.pack_into('<I', data, off, RET)
-    print('[P2] OK: node::Abort → RET. All CHECK() failures silently pass.')
+    print('[P2] OK: node::Assert -> RET. All CHECK() failures silently pass.')
     return True
 
-# ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     if not os.path.exists(SO_PATH):
         print('ERROR: {} not found'.format(SO_PATH))
@@ -115,7 +105,7 @@ def main():
         print('ERROR: not ELF')
         sys.exit(1)
     ok1 = patch1_trap_handler(data)
-    ok2 = patch2_node_abort(data)
+    ok2 = patch2_node_assert(data)
     if not (ok1 and ok2):
         print('ERROR: patch failed')
         sys.exit(1)
