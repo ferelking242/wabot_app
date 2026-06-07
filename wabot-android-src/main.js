@@ -37,6 +37,7 @@
   const DATA_DIR = process.env.WABOT_DATA_DIR || '/data/data/com.aivos.wabot.app/files/wabot';
   const path     = require('path');
   const AUTH_DIR = path.join(DATA_DIR, 'auth_state');
+  process.env.WABOT_TEMP_DIR = path.join(DATA_DIR, 'tmp');
 
   process.env.SUPABASE_URL              = process.env.SUPABASE_URL              || 'https://nublrlyhdbeoqimntdrl.supabase.co';
   process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -254,6 +255,21 @@
     } catch (_) { return false; }
   }
 
+
+  // FIX CODE 515 — purge des clés Signal corrompues (garde creds.json)
+  function clearSignalKeys(authDir) {
+    try {
+      if (!fs.existsSync(authDir)) return;
+      const files = fs.readdirSync(authDir);
+      let n = 0;
+      for (const f of files) {
+        if (f === 'creds.json') continue;
+        try { fs.unlinkSync(path.join(authDir, f)); n++; } catch (_) {}
+      }
+      _safeLog('INFO', '🔑 ' + n + ' clé(s) Signal purgée(s) — creds.json conservé');
+    } catch (e) { _safeLog('WARN', 'clearSignalKeys: ' + e.message); }
+  }
+
   // ── Démarrage WhatsApp ────────────────────────────────────────────────────
   async function startBot() {
     if (botStarting || isConnected) return;
@@ -289,9 +305,9 @@
     const silentLogger = {
       level: 'silent',
       trace: () => {}, debug: () => {}, info: () => {},
-      warn:  m => _safeLog('WARN',  typeof m === 'object' ? JSON.stringify(m).slice(0, 200) : String(m)),
-      error: m => _safeLog('ERROR', typeof m === 'object' ? JSON.stringify(m).slice(0, 200) : String(m)),
-      fatal: m => _safeLog('ERROR', typeof m === 'object' ? JSON.stringify(m).slice(0, 200) : String(m)),
+      warn:  m => { const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}' || _s.startsWith('{"error":{}}') || _s.startsWith('{"err":{}')) return; _safeLog('WARN', _s.slice(0, 200)); },
+      error: m => { const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}' || _s.startsWith('{"error":{}}') || _s.startsWith('{"err":{}')) return; _safeLog('ERROR', _s.slice(0, 200)); },
+      fatal: m => { const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}' || _s.startsWith('{"error":{}}') || _s.startsWith('{"err":{}')) return; _safeLog('ERROR', _s.slice(0, 200)); },
       child: () => silentLogger,
     };
 
@@ -300,7 +316,7 @@
     try {
       authState = {
         creds: state.creds,
-        keys:  makeCacheableSignalKeyStore(state.keys, silentLogger),
+        keys:  state.keys,
       };
     } catch (_) {
       // fallback si version de baileys sans makeCacheableSignalKeyStore
@@ -424,6 +440,10 @@
           try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch (_) {}
           setTimeout(() => startBot(), 2000);
         } else {
+          if (code === 515) {
+            _safeLog('WARN', 'Code 515 — purge clés Signal avant reconnexion');
+            clearSignalKeys(AUTH_DIR);
+          }
           const delay = [515, 408, 503].includes(code) ? 3000 : 6000;
           _safeLog('INFO', 'Reconnexion dans ' + (delay / 1000) + 's...');
           setTimeout(() => startBot(), delay);
