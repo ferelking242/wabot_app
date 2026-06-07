@@ -27,7 +27,6 @@ class BotEngine {
         @JvmStatic
         external fun sendMessageToNodeChannel(channelName: String, msg: String)
 
-        // Called from native (JNI) when Node.js sends a message
         @JvmStatic
         fun sendMessageToApplication(channelName: String, msg: String) {
             Log.d(TAG, "Node → Flutter [$channelName]: $msg")
@@ -39,42 +38,60 @@ class BotEngine {
 }
 
 object BotLauncher {
-    @Volatile
-    var started = false
+    @Volatile var started  = false
+    @Volatile var running  = false   // true uniquement quand Node tourne réellement
 
-    fun launch(scriptPath: String, dataDir: String) {
+    private var scriptPath = ""
+    private var dataDir    = ""
+
+    fun launch(script: String, data: String) {
+        scriptPath = script
+        dataDir    = data
         if (started) return
-        started = true
-        Thread {
-            try {
-                val env = mapOf(
-                    "PORT" to "3001",
-                    "WABOT_DATA_DIR" to dataDir,
-                    "WABOT_AUTH_KEY" to "wabot_embedded_v1",
-                    "NODE_ENV" to "production"
-                )
-                env.forEach { (k, v) ->
-                    try {
-                        val pid = android.os.Process.myPid()
-                        // set via process.env in Node.js, injected via --env-file or env vars
-                        // We pass them via the NODE_PATH / env mechanism
-                        System.setProperty("wabot.$k", v)
-                    } catch (_: Exception) {}
-                }
-                // Set Android-specific env vars before starting
-                android.system.Os.setenv("PORT", "3001", true)
-                android.system.Os.setenv("WABOT_DATA_DIR", dataDir, true)
-                android.system.Os.setenv("WABOT_AUTH_KEY", "wabot_embedded_v1", true)
-                android.system.Os.setenv("NODE_ENV", "production", true)
+        _startThread()
+    }
 
-                BotEngine.startNodeWithArguments(
-                    arrayOf("node", scriptPath),
-                    "",
-                    true
-                )
-            } catch (e: Exception) {
-                android.util.Log.e("BotLauncher", "Node.js crashed: ${e.message}", e)
+    private fun _startThread() {
+        started = true
+        running = false
+
+        Thread {
+            var attempts = 0
+            while (true) {
+                attempts++
+                android.util.Log.i("BotLauncher", "Démarrage Node.js (tentative #$attempts)")
+                try {
+                    android.system.Os.setenv("PORT",            "3001",               true)
+                    android.system.Os.setenv("WABOT_DATA_DIR",  dataDir,              true)
+                    android.system.Os.setenv("WABOT_AUTH_KEY",  "wabot_embedded_v1",  true)
+                    android.system.Os.setenv("NODE_ENV",        "production",         true)
+
+                    running = true
+                    // Appel BLOQUANT — revient quand Node.js se termine
+                    val exitCode = BotEngine.startNodeWithArguments(
+                        arrayOf("node", scriptPath),
+                        "",
+                        true
+                    )
+                    running = false
+                    android.util.Log.w("BotLauncher", "Node.js terminé avec code $exitCode")
+                } catch (e: Exception) {
+                    running = false
+                    android.util.Log.e("BotLauncher", "Node.js exception: ${e.message}", e)
+                }
+
+                // Attendre avant de redémarrer (backoff simple)
+                val delay = when {
+                    attempts < 3 -> 3_000L
+                    attempts < 6 -> 6_000L
+                    else         -> 15_000L
+                }
+                android.util.Log.i("BotLauncher", "Redémarrage dans ${delay / 1000}s...")
+                Thread.sleep(delay)
             }
-        }.also { it.name = "wabot-node-thread" }.start()
+        }.also {
+            it.name       = "wabot-node-thread"
+            it.isDaemon   = true  // thread daemon → ne bloque pas la fermeture de l'app
+        }.start()
     }
 }
