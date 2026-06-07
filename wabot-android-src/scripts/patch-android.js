@@ -1,31 +1,24 @@
 #!/usr/bin/env node
 /**
  * patch-android.js
- * Remplace les fichiers de commandes qui utilisent des modules
- * incompatibles Android par des stubs "non disponible sur mobile".
+ * 1) Stubbe les fichiers qui utilisent des modules incompatibles Android
+ * 2) Corrige TOUS les chemins ./data/tmp hardcodés dans tout le repo WABOT
  */
 const fs   = require('fs');
 const path = require('path');
 
 const CORE_DIR = path.join(__dirname, '..', 'wabot-core');
 
-// Modules incompatibles Android (natifs C++, Python, binaires externes)
-// NB: quand esbuild les marque --external, ils restent comme require() dans
-//     le bundle → crash au runtime si appelés au top-level d'un fichier chargé
-//     par commandHandler.js. On stubbe les fichiers qui les utilisent.
+// Modules incompatibles Android (natifs C++, Python, binaires externes, etc.)
 const INCOMPATIBLE = [
-  // Traitement media natif
   'fluent-ffmpeg', 'sharp', 'canvas', 'puppeteer',
-  // Scrapers / libs externes
   'ruhend-scraper', 'mumaker',
-  // WebP
   'node-webpmux', 'wa-sticker-formatter',
-  // TTS Python/binaire
   'gtts', 'edge-tts',
-  // Utilitaires avec deps natives potentielles
   'file-type', 'human-readable',
-  // Autres binaires
   'sox', 'node-opus', 'opusscript',
+  // fs-extra n'est pas dispo dans le bundle esbuild Android
+  'fs-extra',
 ];
 
 const STUB = `// Android stub — commande non disponible sur mobile
@@ -57,6 +50,7 @@ function hasIncompatible(content) {
   );
 }
 
+// ── Étape 1 : stub des modules incompatibles ─────────────────────────────────
 function patchDir(dir) {
   if (!fs.existsSync(dir)) return;
   for (const file of fs.readdirSync(dir)) {
@@ -67,15 +61,84 @@ function patchDir(dir) {
     try { content = fs.readFileSync(full, 'utf8'); }
     catch (_) { continue; }
     if (hasIncompatible(content)) {
-      console.log('  ✂️  Patché:', full.replace(CORE_DIR + path.sep, ''));
+      console.log('  ✂️  Stubbed:', full.replace(CORE_DIR + path.sep, ''));
       fs.writeFileSync(full, STUB);
     }
   }
 }
 
-console.log('\n🔧 Application des patches Android...');
+// ── Étape 2 : fix global des chemins tmp hardcodés ───────────────────────────
+// Remplace TOUTES les variantes de ./data/tmp par le bon chemin Android
+// Compatible avec toute version future du repo WABOT.
+const TMP_REPLACEMENT =
+  "(process.env.WABOT_TEMP_DIR || require('path').join(require('os').tmpdir(), 'wabot-tmp'))";
+
+// Patterns à remplacer (chaînes littérales dans le JS source)
+const TMP_PATTERNS = [
+  // './data/tmp'  ou  "./data/tmp"
+  { re: /(['"])\.\/data\/tmp\1/g,           rep: TMP_REPLACEMENT },
+  // '../data/tmp'  ou  "../data/tmp"
+  { re: /(['"])\.\.\/data\/tmp\1/g,         rep: TMP_REPLACEMENT },
+  // path.join(process.cwd(), 'data', 'tmp')
+  { re: /path\.join\(\s*process\.cwd\(\)\s*,\s*['"]data['"]\s*,\s*['"]tmp['"]\s*\)/g,
+    rep: TMP_REPLACEMENT },
+  // path.join(__dirname, '..', 'data', 'tmp')
+  { re: /path\.join\(\s*__dirname\s*,\s*['"]\.\.['"]\s*,\s*['"]data['"]\s*,\s*['"]tmp['"]\s*\)/g,
+    rep: TMP_REPLACEMENT },
+];
+
+function fixTmpInFile(full) {
+  let content;
+  try { content = fs.readFileSync(full, 'utf8'); } catch (_) { return; }
+  const original = content;
+
+  // Remplace les patterns de chemin
+  for (const { re, rep } of TMP_PATTERNS) {
+    content = content.replace(re, rep);
+  }
+
+  // Entoure les mkdirSync au niveau module d'un try-catch
+  // (lignes en dehors de toute fonction : commencent par "if (!fs.existsSync" ou "fs.mkdirSync")
+  content = content.replace(
+    /^(\s*)(if\s*\(!fs\.existsSync\([^)]+\)\)\s*fs\.mkdirSync\([^;]+;\s*)$/gm,
+    '$1try { $2} catch (_) {}'
+  );
+  content = content.replace(
+    /^(\s*)(fs\.mkdirSync\([^;]+;\s*)$/gm,
+    '$1try { $2} catch (_) {}'
+  );
+
+  if (content !== original) {
+    fs.writeFileSync(full, content);
+    return true;
+  }
+  return false;
+}
+
+function fixTmpDir(dir) {
+  if (!fs.existsSync(dir)) return;
+  for (const file of fs.readdirSync(dir)) {
+    const full = path.join(dir, file);
+    if (fs.statSync(full).isDirectory()) { fixTmpDir(full); continue; }
+    if (!file.endsWith('.js') && !file.endsWith('.cjs')) continue;
+    if (fixTmpInFile(full)) {
+      console.log('  📁 tmp path fixed:', full.replace(CORE_DIR + path.sep, ''));
+    }
+  }
+}
+
+// ── Run ───────────────────────────────────────────────────────────────────────
+console.log('\n🔧 Étape 1 — Stub modules incompatibles Android...');
 patchDir(path.join(CORE_DIR, 'commands'));
 patchDir(path.join(CORE_DIR, 'lib'));
 patchDir(path.join(CORE_DIR, 'serena-assistant'));
 patchDir(path.join(CORE_DIR, 'services'));
-console.log('✅ Patches terminés\n');
+
+console.log('\n🔧 Étape 2 — Fix global chemins ./data/tmp...');
+fixTmpDir(path.join(CORE_DIR, 'commands'));
+fixTmpDir(path.join(CORE_DIR, 'lib'));
+fixTmpDir(path.join(CORE_DIR, 'serena-assistant'));
+fixTmpDir(path.join(CORE_DIR, 'services'));
+fixTmpDir(path.join(CORE_DIR, 'config'));
+
+console.log('\n✅ Patches Android terminés\n');
