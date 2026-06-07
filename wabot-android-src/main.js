@@ -305,9 +305,9 @@
     const silentLogger = {
       level: 'silent',
       trace: () => {}, debug: () => {}, info: () => {},
-      warn:  m => { const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}' || _s.startsWith('{"error":{}}') || _s.startsWith('{"err":{}')) return; _safeLog('WARN', _s.slice(0, 200)); },
-      error: m => { const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}' || _s.startsWith('{"error":{}}') || _s.startsWith('{"err":{}')) return; _safeLog('ERROR', _s.slice(0, 200)); },
-      fatal: m => { const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}' || _s.startsWith('{"error":{}}') || _s.startsWith('{"err":{}')) return; _safeLog('ERROR', _s.slice(0, 200)); },
+      warn:  m => { const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}' || _s === '{"error":{}}' || _s === '{"err":{}}') return; _safeLog('WARN', _s.slice(0, 200)); },
+      error: m => { const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}' || _s === '{"error":{}}' || _s === '{"err":{}}') return; _safeLog('ERROR', _s.slice(0, 200)); },
+      fatal: m => { const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}' || _s === '{"error":{}}' || _s === '{"err":{}}') return; _safeLog('ERROR', _s.slice(0, 200)); },
       child: () => silentLogger,
     };
 
