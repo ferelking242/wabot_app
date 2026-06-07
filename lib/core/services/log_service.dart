@@ -1,129 +1,175 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+  import 'package:flutter/foundation.dart';
+  import 'package:path_provider/path_provider.dart';
+  import 'package:share_plus/share_plus.dart';
 
-enum LogLevel { debug, info, warn, error }
+  enum LogLevel { debug, info, warn, error }
 
-class LogEntry {
-  final LogLevel level;
-  final String tag;
-  final String message;
-  final DateTime time;
-  final String? stackTrace;
+  class LogEntry {
+    final LogLevel level;
+    final String tag;
+    final String message;
+    final DateTime time;
+    final String? stackTrace;
 
-  const LogEntry({
-    required this.level,
-    required this.tag,
-    required this.message,
-    required this.time,
-    this.stackTrace,
-  });
+    const LogEntry({
+      required this.level,
+      required this.tag,
+      required this.message,
+      required this.time,
+      this.stackTrace,
+    });
 
-  String get levelStr => level.name.toUpperCase().padRight(5);
+    String get levelStr => level.name.toUpperCase().padRight(5);
 
-  String toLine() {
-    final h = time.hour.toString().padLeft(2, '0');
-    final m = time.minute.toString().padLeft(2, '0');
-    final s = time.second.toString().padLeft(2, '0');
-    final ms = time.millisecond.toString().padLeft(3, '0');
-    final base = '[$h:$m:$s.$ms] [$levelStr] [$tag] $message';
-    if (stackTrace != null) return '$base\n  $stackTrace';
-    return base;
-  }
-}
-
-class LogService {
-  LogService._();
-
-  static final LogService instance = LogService._();
-
-  final _buffer = <LogEntry>[];
-  static const _maxBuffer = 500;
-  File? _logFile;
-  bool _initialized = false;
-
-  static LogService get I => instance;
-
-  Future<void> init() async {
-    if (_initialized) return;
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final logDir = Directory('${dir.path}/logs');
-      await logDir.create(recursive: true);
-      _logFile = File('${logDir.path}/wabot.log');
-      // Rotation : si le fichier fait plus de 2 Mo, on archive
-      if (_logFile!.existsSync() && _logFile!.lengthSync() > 2 * 1024 * 1024) {
-        await _logFile!.rename('${logDir.path}/wabot_old.log');
-        _logFile = File('${logDir.path}/wabot.log');
-      }
-      _initialized = true;
-      i('LogService', 'LogService initialisé — ${_logFile!.path}');
-    } catch (e) {
-      debugPrint('[LogService] Init error: $e');
+    String toLine() {
+      final h  = time.hour.toString().padLeft(2, '0');
+      final m  = time.minute.toString().padLeft(2, '0');
+      final s  = time.second.toString().padLeft(2, '0');
+      final ms = time.millisecond.toString().padLeft(3, '0');
+      final base = '[$h:$m:$s.$ms] [$levelStr] [$tag] $message';
+      if (stackTrace != null) return '$base\n  $stackTrace';
+      return base;
     }
   }
 
-  void _write(LogLevel lvl, String tag, String msg, {String? stack}) {
-    final entry = LogEntry(
-      level: lvl, tag: tag, message: msg,
-      time: DateTime.now(), stackTrace: stack,
-    );
-    _buffer.add(entry);
-    if (_buffer.length > _maxBuffer) _buffer.removeAt(0);
-    final line = entry.toLine();
-    debugPrint(line);
-    if (_logFile != null) {
+  class LogService {
+    LogService._();
+    static final LogService instance = LogService._();
+    static LogService get I => instance;
+
+    final _buffer = <LogEntry>[];
+    static const _maxBuffer = 800;
+
+    File? _internalLogFile;  // /data/data/.../files/wabot/logs/wabot.log
+    File? _externalLogFile;  // /storage/emulated/0/wabot/logs/wabot.log
+    bool  _initialized = false;
+
+    // Chemin externe racine — créé dès que la permission est accordée
+    static const String externalRoot = '/storage/emulated/0/wabot';
+
+    Future<void> init() async {
+      if (_initialized) return;
       try {
-        _logFile!.writeAsStringSync('$line\n', mode: FileMode.append, flush: false);
-      } catch (_) {}
-    }
-  }
+        // ── Chemin interne (toujours disponible) ──────────────────────────
+        final appDir = await getApplicationDocumentsDirectory();
+        _internalLogFile = await _openLogFile('${appDir.path}/logs');
 
-  void d(String tag, String msg) => _write(LogLevel.debug, tag, msg);
-  void i(String tag, String msg) => _write(LogLevel.info,  tag, msg);
-  void w(String tag, String msg) => _write(LogLevel.warn,  tag, msg);
-  void e(String tag, String msg, {Object? error, StackTrace? stack}) {
-    final stackStr = stack != null ? stack.toString().split('\n').take(5).join(' | ') : null;
-    final errStr   = error != null ? ' | $error' : '';
-    _write(LogLevel.error, tag, '$msg$errStr', stack: stackStr);
-  }
+        // ── Chemin externe (si MANAGE_EXTERNAL_STORAGE accordé) ──────────
+        await _tryInitExternalLog();
 
-  List<LogEntry> get recent => List.unmodifiable(_buffer);
-
-  List<LogEntry> get errors => _buffer.where((e) => e.level == LogLevel.error).toList();
-
-  Future<String?> get logFilePath async {
-    if (_logFile?.existsSync() == true) return _logFile!.path;
-    return null;
-  }
-
-  Future<void> exportLogs() async {
-    try {
-      if (_logFile == null) {
-        // Créer un fichier temporaire avec le buffer mémoire
-        final dir = await getTemporaryDirectory();
-        final tmp = File('${dir.path}/wabot_export.log');
-        await tmp.writeAsString(_buffer.map((e) => e.toLine()).join('\n'));
-        await Share.shareXFiles([XFile(tmp.path)], subject: 'Wabot Logs');
-      } else {
-        await Share.shareXFiles([XFile(_logFile!.path)], subject: 'Wabot Logs');
+        _initialized = true;
+        i('LogService', 'Initialisé — interne: ${_internalLogFile?.path}');
+        if (_externalLogFile != null) {
+          i('LogService', 'Log externe: ${_externalLogFile!.path}');
+        }
+      } catch (e) {
+        debugPrint('[LogService] Init error: $e');
       }
-    } catch (err) {
-      debugPrint('[LogService] Export error: $err');
     }
-  }
 
-  Future<void> clearLogs() async {
-    _buffer.clear();
-    try { await _logFile?.writeAsString(''); } catch (_) {}
-    i('LogService', 'Logs effacés');
-  }
+    /// Crée/ouvre le dossier wabot racine externe et les logs associés.
+    /// Appelé depuis [BotService] dès que MANAGE_EXTERNAL_STORAGE est accordé.
+    Future<void> initExternalStorage() async {
+      try {
+        // Créer le dossier wabot à la racine
+        final root = Directory(externalRoot);
+        if (!root.existsSync()) {
+          root.createSync(recursive: true);
+          i('LogService', 'Dossier /wabot créé à la racine du stockage');
+        }
+        await _tryInitExternalLog();
+      } catch (e) {
+        w('LogService', 'initExternalStorage: $e');
+      }
+    }
 
-  // Accès global statique pour tout le code
-  static void debug(String tag, String msg)                        => instance.d(tag, msg);
-  static void info (String tag, String msg)                        => instance.i(tag, msg);
-  static void warn (String tag, String msg)                        => instance.w(tag, msg);
-  static void error(String tag, String msg, {Object? err, StackTrace? stack}) =>
-      instance.e(tag, msg, error: err, stack: stack);
-}
+    Future<void> _tryInitExternalLog() async {
+      try {
+        final extLogDir = Directory('$externalRoot/logs');
+        if (!extLogDir.existsSync()) extLogDir.createSync(recursive: true);
+        _externalLogFile = await _openLogFile(extLogDir.path);
+      } catch (_) {} // pas de permission = silencieux
+    }
+
+    Future<File?> _openLogFile(String dirPath) async {
+      try {
+        final dir = Directory(dirPath);
+        await dir.create(recursive: true);
+        final f = File('${dir.path}/wabot.log');
+        // Rotation si > 3 Mo
+        if (f.existsSync() && f.lengthSync() > 3 * 1024 * 1024) {
+          await f.rename('${dir.path}/wabot_old.log');
+          return File('${dir.path}/wabot.log');
+        }
+        return f;
+      } catch (_) { return null; }
+    }
+
+    void _write(LogLevel lvl, String tag, String msg, {String? stack}) {
+      final entry = LogEntry(
+        level: lvl, tag: tag, message: msg,
+        time: DateTime.now(), stackTrace: stack,
+      );
+      _buffer.add(entry);
+      if (_buffer.length > _maxBuffer) _buffer.removeAt(0);
+      final line = entry.toLine();
+      debugPrint(line);
+      // Écriture dual-path (silencieuse si fichier indisponible)
+      _appendLine(_internalLogFile, '$line\n');
+      _appendLine(_externalLogFile, '$line\n');
+    }
+
+    void _appendLine(File? f, String line) {
+      if (f == null) return;
+      try { f.writeAsStringSync(line, mode: FileMode.append, flush: false); }
+      catch (_) {}
+    }
+
+    void d(String tag, String msg)                           => _write(LogLevel.debug, tag, msg);
+    void i(String tag, String msg)                           => _write(LogLevel.info,  tag, msg);
+    void w(String tag, String msg)                           => _write(LogLevel.warn,  tag, msg);
+    void e(String tag, String msg, {Object? error, StackTrace? stack}) {
+      final stackStr = stack?.toString().split('\n').take(6).join(' | ');
+      final errStr   = error != null ? ' | $error' : '';
+      _write(LogLevel.error, tag, '$msg$errStr', stack: stackStr);
+    }
+
+    List<LogEntry> get recent => List.unmodifiable(_buffer);
+    List<LogEntry> get errors => _buffer.where((e) => e.level == LogLevel.error).toList();
+
+    String? get internalLogPath  => _internalLogFile?.existsSync() == true ? _internalLogFile!.path : null;
+    String? get externalLogPath  => _externalLogFile?.existsSync() == true ? _externalLogFile!.path : null;
+
+    Future<void> exportLogs() async {
+      try {
+        final files = <XFile>[];
+        if (_internalLogFile?.existsSync() == true) files.add(XFile(_internalLogFile!.path));
+        if (_externalLogFile?.existsSync() == true) files.add(XFile(_externalLogFile!.path));
+        if (files.isEmpty) {
+          final dir = await getTemporaryDirectory();
+          final tmp = File('${dir.path}/wabot_export.log');
+          await tmp.writeAsString(_buffer.map((e) => e.toLine()).join('\n'));
+          files.add(XFile(tmp.path));
+        }
+        await Share.shareXFiles(files, subject: 'Wabot Logs');
+      } catch (err) {
+        debugPrint('[LogService] Export error: $err');
+      }
+    }
+
+    Future<void> clearLogs() async {
+      _buffer.clear();
+      try { await _internalLogFile?.writeAsString(''); } catch (_) {}
+      try { await _externalLogFile?.writeAsString(''); } catch (_) {}
+      i('LogService', 'Logs effacés');
+    }
+
+    // Accès statique global
+    static void debug(String tag, String msg)                                       => instance.d(tag, msg);
+    static void info (String tag, String msg)                                       => instance.i(tag, msg);
+    static void warn (String tag, String msg)                                       => instance.w(tag, msg);
+    static void error(String tag, String msg, {Object? err, StackTrace? stack})    =>
+        instance.e(tag, msg, error: err, stack: stack);
+  }
+  

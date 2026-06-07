@@ -544,6 +544,7 @@ app.get('/api/v1/metrics', (_, res) => {
 });
 
 // ── Démarrage ─────────────────────────────────────────────────────────────
+_initLogFile();
 app.listen(PORT, '127.0.0.1', () => {
   _safeLog('INFO', 'Wabot API démarrée sur le port ' + PORT);
   startBot();

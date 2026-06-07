@@ -318,6 +318,50 @@ class _BotScreenState extends ConsumerState<BotScreen>
                       },
                     ),
             ),
+              // ── Ressources ────────────────────────────────────────────────────
+              const SizedBox(height: 16),
+              _SectionCard(
+                icon: Icons.folder_open_rounded,
+                title: 'Ressources',
+                children: [
+                  _ResourceTile(
+                    icon: Icons.storage_rounded,
+                    label: 'Stockage interne',
+                    value: '/data/data/com.aivos.wabot.app/files/wabot',
+                  ),
+                  _ResourceTile(
+                    icon: Icons.sd_storage_rounded,
+                    label: 'Stockage externe',
+                    value: '/storage/emulated/0/wabot',
+                  ),
+                  _ResourceTile(
+                    icon: Icons.description_rounded,
+                    label: 'Log interne',
+                    value: LogService.I.internalLogPath ?? 'non initialisé',
+                  ),
+                  _ResourceTile(
+                    icon: Icons.description_outlined,
+                    label: 'Log externe',
+                    value: LogService.I.externalLogPath ?? 'non disponible',
+                  ),
+                  const SizedBox(height: 4),
+                  const Divider(height: 1, color: Color(0x22ffffff)),
+                  const SizedBox(height: 4),
+                  _ResourceTile(
+                    icon: Icons.code_rounded,
+                    label: 'GitHub WABOT',
+                    value: 'github.com/ferelking242/WABOT',
+                    tappable: true,
+                  ),
+                  _ResourceTile(
+                    icon: Icons.link_rounded,
+                    label: 'GitHub App',
+                    value: 'github.com/ferelking242/wabot_app',
+                    tappable: true,
+                  ),
+                ],
+              ),
+  
           ],
         ),
       ),
@@ -349,6 +393,71 @@ class _StatChip extends StatelessWidget {
     ]),
   ));
 }
+
+  class _SectionCard extends StatelessWidget {
+    final IconData icon;
+    final String title;
+    final List<Widget> children;
+    const _SectionCard({required this.icon, required this.title, required this.children});
+
+    @override
+    Widget build(BuildContext context) {
+      return Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E2E),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF313145)),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(icon, size: 15, color: const Color(0xFF7C7C99)),
+            const SizedBox(width: 6),
+            Text(title, style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w700,
+                color: Color(0xFF7C7C99), letterSpacing: 0.5)),
+          ]),
+          const SizedBox(height: 10),
+          ...children,
+        ]),
+      );
+    }
+  }
+
+  class _ResourceTile extends StatelessWidget {
+    final IconData icon;
+    final String label;
+    final String value;
+    final bool tappable;
+    const _ResourceTile({required this.icon, required this.label, required this.value, this.tappable = false});
+
+    @override
+    Widget build(BuildContext context) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, size: 14, color: const Color(0xFF5C5C7A)),
+          const SizedBox(width: 8),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF7C7C99))),
+            GestureDetector(
+              onTap: tappable ? () => Clipboard.setData(ClipboardData(text: value)) : null,
+              child: Text(value,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: tappable ? const Color(0xFF7EB3FF) : const Color(0xFFB0B0CC),
+                  fontFamily: 'monospace',
+                  decoration: tappable ? TextDecoration.underline : null,
+                ),
+                maxLines: 2, overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ])),
+        ]),
+      );
+    }
+  }
+  
 
 class _CtrlBtn extends StatelessWidget {
   final IconData icon;
