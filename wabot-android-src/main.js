@@ -105,6 +105,20 @@
     const Module = require('module');
     const _load  = Module._load.bind(Module);
     Module._load = function(request, parent, isMain) {
+      // Pure-JS fallbacks: addons natifs ws compiles x86_64, pas ARM64
+      if (request === 'bufferutil') {
+        return {
+          mask: function(src, msk, out, off, len) {
+            for (var i = 0; i < len; i++) out[off + i] = src[i] ^ msk[i & 3];
+          },
+          unmask: function(buf, msk) {
+            for (var i = 0; i < buf.length; i++) buf[i] ^= msk[i & 3];
+          }
+        };
+      }
+      if (request === 'utf-8-validate') {
+        return { isValidUTF8: function() { return true; } };
+      }
       try {
         return _load(request, parent, isMain);
       } catch (err) {
