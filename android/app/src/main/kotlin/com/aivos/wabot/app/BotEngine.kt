@@ -67,13 +67,11 @@ package com.aivos.wabot.app
                       android.system.Os.setenv("NODE_ENV",        "production",         true)
 
                       running = true
-                      // --no-wasm-trap-handler : désactive le trap handler V8/WebAssembly
                       // qui cause un SIGTRAP fatal sur Android (Samsung Galaxy S21, Android 15+)
                       // --no-experimental-fetch : évite l'API Fetch expérimentale non supportée
                       val exitCode = BotEngine.startNodeWithArguments(
                           arrayOf(
                               "node",
-                              "--no-wasm-trap-handler",
                               "--no-experimental-fetch",
                               scriptPath
                           ),
