@@ -67,6 +67,9 @@ dependencies:
   # Partage de fichiers (export logs)
   share_plus: ^10.0.0
 
+  # Sélection de fichiers (import session)
+  file_picker: ^8.1.7
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
