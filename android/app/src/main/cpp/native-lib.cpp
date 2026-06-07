@@ -22,22 +22,13 @@
   }
 
   extern "C" int callintoNode(int argc, char *argv[]) {
-      // ── FIX SIGTRAP — Android ARM64 (Samsung Galaxy + Android 15) ────────
-      //
-      // Problème : dans nodejs-mobile 18.20.4, la libnode.so ARM64 est compilée
-      // avec V8_TRAP_HANDLER_SUPPORTED=false. Pourtant, Node.js appelle
-      // v8::internal::trap_handler::EnableTrapHandler() pendant l'initialisation
-      // de la plateforme V8, AVANT que les args CLI (--no-wasm-trap-handler)
-      // soient parsés. Le CHECK(false) interne génère une instruction BRK →
-      // signal 5 SIGTRAP → crash fatal du process.
-      //
-      // Solution : appeler V8::SetFlagsFromString() AVANT node::Start() pour
-      // que le flag soit actif avant toute initialisation V8. Ajouter aussi
-      // NODE_OPTIONS comme filet de sécurité.
-      //
-      v8::V8::SetFlagsFromString("--no-wasm-trap-handler");
+      // ── Fix SIGTRAP ARM64 ────────────────────────────────────────────────
+      // libnode.so 18.20.4 ARM64 est compilé avec V8_TRAP_HANDLER_SUPPORTED=false.
+      // EnableTrapHandler() est donc juste __builtin_trap() -> BRK -> SIGTRAP fatal.
+      // Le vrai fix est appliqué en CI via scripts/patch-libnode.py qui écrase
+      // les 2 premières instructions d'EnableTrapHandler par MOV X0,XZR + RET.
+      // NODE_OPTIONS ici sert de filet de sécurité pour les runs non-patchés.
       setenv("NODE_OPTIONS", "--no-wasm-trap-handler --no-experimental-fetch", 1);
-
       return node::Start(argc, argv);
   }
 
