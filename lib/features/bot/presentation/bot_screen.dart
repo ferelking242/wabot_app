@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert' show LineSplitter;
-import 'dart:io' show File;
+import 'dart:io' show File, Process;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -97,17 +97,49 @@ class _BotScreenState extends ConsumerState<BotScreen>
             'cpu':      info.hardware,
             'cores':    _getCpuCores(),
             'abi':      info.supportedAbis.isNotEmpty ? info.supportedAbis.first : '?',
-            'ram':      '?',
+            'ram':      '...',
             'android':  info.version.release,
             'sdk':      info.version.sdkInt.toString(),
             'board':    info.board,
             'device':   info.device,
           };
         });
-        _loadRomInfo(setState);
+        // Chargement RAM et stockage en parallèle
+        await Future.wait([
+          _loadRamFromMemInfo(setState),
+          _loadRomInfo(setState),
+        ]);
       }
     } catch (e) {
       LogService.warn(_TAG, 'deviceInfo: $e');
+    }
+  }
+
+  // ── RAM via /proc/meminfo (pas de permissions requises) ───────────────────
+  Future<void> _loadRamFromMemInfo(Function(void Function()) setS) async {
+    if (kIsWeb) return;
+    try {
+      final lines = _readFileSync('/proc/meminfo').split('\n');
+      int? totalKb, availKb;
+      for (final line in lines) {
+        if (line.startsWith('MemTotal:')) {
+          totalKb = int.tryParse(line.replaceAll(RegExp(r'[^0-9]'), ''));
+        } else if (line.startsWith('MemAvailable:')) {
+          availKb = int.tryParse(line.replaceAll(RegExp(r'[^0-9]'), ''));
+        }
+        if (totalKb != null && availKb != null) break;
+      }
+      if (totalKb != null && totalKb > 0 && mounted) {
+        final totalGb = (totalKb / 1048576).toStringAsFixed(1);
+        final usedStr = availKb != null
+            ? '${((totalKb - availKb) / 1048576).toStringAsFixed(1)} / $totalGb GB'
+            : '$totalGb GB';
+        setS(() => _deviceInfo['ram'] = usedStr);
+      } else if (mounted) {
+        setS(() => _deviceInfo['ram'] = '?');
+      }
+    } catch (_) {
+      if (mounted) setS(() => _deviceInfo['ram'] = '?');
     }
   }
 
@@ -131,30 +163,36 @@ class _BotScreenState extends ConsumerState<BotScreen>
     } catch (_) { return ''; }
   }
 
+  // ── Stockage via commande 'df' (Android/Linux, pas de permissions) ──────────
   Future<void> _loadRomInfo(Function(void Function()) setS) async {
     if (kIsWeb) return;
     try {
-      final stats = await StatFs.getExternalStorageStats();
-      if (mounted) {
-        setS(() {
-          if (stats.totalBytes > 0) {
-            final totalGb = (stats.totalBytes / 1073741824).toStringAsFixed(0);
-            final freeGb  = (stats.freeBytes  / 1073741824).toStringAsFixed(1);
-            _deviceInfo['rom']  = '$totalGb GB';
-            _deviceInfo['free'] = '$freeGb GB libre';
-          } else {
-            _deviceInfo['rom']  = '—';
-            _deviceInfo['free'] = '—';
+      final result = await Process.run('df', ['-k', '/storage/emulated/0']);
+      if (result.exitCode == 0) {
+        final lines = (result.stdout as String).trim().split('\n');
+        // Dernière ligne = données (sauter l'en-tête)
+        if (lines.length >= 2) {
+          final parts = lines.last.trim().split(RegExp(r'\s+'));
+          // Format : Filesystem 1K-blocks Used Available Use% Mount
+          if (parts.length >= 4) {
+            final totalKb = int.tryParse(parts[1]) ?? 0;
+            final availKb = int.tryParse(parts[3]) ?? 0;
+            if (totalKb > 0 && mounted) {
+              setS(() {
+                _deviceInfo['rom']  = '${(totalKb / 1048576).toStringAsFixed(0)} GB';
+                _deviceInfo['free'] = '${(availKb / 1048576).toStringAsFixed(1)} GB libre';
+              });
+              return;
+            }
           }
-        });
+        }
       }
-    } catch (_) {
-      if (mounted) {
-        setS(() {
-          _deviceInfo['rom']  = '—';
-          _deviceInfo['free'] = '—';
-        });
-      }
+    } catch (_) {}
+    if (mounted) {
+      setS(() {
+        _deviceInfo['rom']  = '—';
+        _deviceInfo['free'] = '—';
+      });
     }
   }
 
@@ -402,19 +440,6 @@ class _BotScreenState extends ConsumerState<BotScreen>
         ),
       ),
     );
-  }
-}
-
-// ─── StatFs helper ────────────────────────────────────────────────────────────
-class _StorageStats {
-  final int totalBytes;
-  final int freeBytes;
-  const _StorageStats(this.totalBytes, this.freeBytes);
-}
-
-class StatFs {
-  static Future<_StorageStats> getExternalStorageStats() async {
-    return const _StorageStats(0, 0);
   }
 }
 
