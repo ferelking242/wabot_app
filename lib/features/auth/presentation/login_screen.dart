@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../presentation/providers/auth_providers.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../services/storage_service.dart';
 import 'splash_screen.dart' show WabotLogoWidget;
+import 'package:dio/dio.dart';
 
 const _g  = Color(0xFF25D366);
 const _gd = Color(0xFF128C7E);
@@ -20,6 +23,9 @@ class _LoginState extends ConsumerState<LoginScreen> {
   final _form     = GlobalKey<FormState>();
   bool _loading   = false;
   bool _obscure   = true;
+  bool _importing = false;
+  String? _importMsg;
+  bool _importOk  = false;
 
   @override
   void dispose() {
@@ -36,6 +42,74 @@ class _LoginState extends ConsumerState<LoginScreen> {
     await StorageService.setString(AppConstants.keyApiUrl, url);
     await ref.read(authProvider.notifier).signIn(key);
     if (mounted) setState(() => _loading = false);
+  }
+
+  // ── Import session ─────────────────────────────────────────────────────────
+  Future<void> _importSession() async {
+    final url = _urlCtrl.text.trim().replaceAll(RegExp(r'/$'), '');
+    final key = _keyCtrl.text.trim();
+
+    if (url.isEmpty || !url.startsWith('http')) {
+      _setImportMsg("Entre d'abord l'URL du serveur", false);
+      return;
+    }
+    if (key.length < 8) {
+      _setImportMsg("Entre d'abord la clé API (wbk_...)", false);
+      return;
+    }
+
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json', 'wabot'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    final bytes = result.files.first.bytes;
+    if (bytes == null) {
+      _setImportMsg('Impossible de lire le fichier', false);
+      return;
+    }
+
+    setState(() { _importing = true; _importMsg = null; });
+
+    try {
+      final Map<String, dynamic> data = jsonDecode(utf8.decode(bytes));
+      if (data['files'] == null) {
+        _setImportMsg('Fichier de session invalide (clé "files" manquante)', false);
+        return;
+      }
+
+      final dio = Dio(BaseOptions(
+        baseUrl: url,
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 15),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': key,
+        },
+      ));
+
+      final resp = await dio.post('/api/v1/session/import', data: data);
+      final ok = resp.data['success'] == true;
+      _setImportMsg(
+        ok
+          ? '✅ Session importée ! Le bot redémarre — attends 5s puis connecte-toi.'
+          : resp.data['error'] ?? 'Erreur inconnue',
+        ok,
+      );
+    } on DioException catch (e) {
+      final msg = e.response?.data?['error'] ?? e.message ?? 'Connexion impossible';
+      _setImportMsg('Erreur : $msg', false);
+    } catch (e) {
+      _setImportMsg('Erreur : $e', false);
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
+  }
+
+  void _setImportMsg(String msg, bool ok) {
+    if (mounted) setState(() { _importMsg = msg; _importOk = ok; });
   }
 
   @override
@@ -176,8 +250,26 @@ class _LoginState extends ConsumerState<LoginScreen> {
                         ]),
                       ),
 
+                      // Message import session
+                      if (_importMsg != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: (_importOk ? _g : const Color(0xFFFF5B5B)).withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: (_importOk ? _g : const Color(0xFFFF5B5B)).withOpacity(0.25))),
+                          child: Text(_importMsg!,
+                            style: TextStyle(
+                              color: _importOk ? _g : const Color(0xFFFF5B5B),
+                              fontSize: 12)),
+                        ),
+                      ],
+
                       const SizedBox(height: 20),
 
+                      // Bouton connexion
                       SizedBox(height: 46, child: ElevatedButton(
                         onPressed: _loading ? null : _submit,
                         style: ElevatedButton.styleFrom(
@@ -193,6 +285,24 @@ class _LoginState extends ConsumerState<LoginScreen> {
                                 strokeWidth: 2, color: Colors.white))
                           : const Text('Continuer',
                               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                      )),
+
+                      const SizedBox(height: 10),
+
+                      // Bouton importer session
+                      SizedBox(height: 44, child: OutlinedButton.icon(
+                        onPressed: (_importing || _loading) ? null : _importSession,
+                        icon: _importing
+                          ? const SizedBox(width: 16, height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: _g))
+                          : const Icon(Icons.file_download_outlined, size: 18, color: _g),
+                        label: Text(
+                          _importing ? 'Import en cours…' : 'Importer une session',
+                          style: const TextStyle(color: _g, fontWeight: FontWeight.w600, fontSize: 14)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: _g, width: 1.2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
                       )),
                     ]),
                   ),
