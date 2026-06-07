@@ -28,7 +28,7 @@ Future<void> main() async {
   };
 
   // Capturer les erreurs async non gérées
-  PlatformDispatcher.instance.onError = (error, stack) {
+  WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
     LogService.error('AsyncError', error.toString(), err: error, stack: stack);
     return false;
   };

@@ -76,7 +76,30 @@ function _safeLog(level, msg) {
   } catch (_) {}
 }
 
-// ── Imports core ──────────────────────────────────────────────────────────
+
+  // ── Safe require : tout module manquant retourne {} sans planter ──────────
+  ;(function patchModuleLoad() {
+    const Module = require('module');
+    const _load  = Module._load.bind(Module);
+    Module._load = function(request, parent, isMain) {
+      try {
+        return _load(request, parent, isMain);
+      } catch (err) {
+        if (err.code === 'MODULE_NOT_FOUND') {
+          const stub = () => stub;
+          stub.default = stub;
+          stub.__esModule = true;
+          stub.prototype = stub;
+          ['connect','create','build','parse','encode','decode','load','get','set',
+           'start','stop','run','execute','command','handler','process'].forEach(k => { stub[k] = stub; });
+          _safeLog('WARN', 'MODULE_NOT_FOUND (stubbed): ' + request);
+          return stub;
+        }
+        throw err;
+      }
+    };
+  })();
+  // ── Imports core ──────────────────────────────────────────────────────────
 const {
   makeWASocket, DisconnectReason,
   useMultiFileAuthState, fetchLatestBaileysVersion,
