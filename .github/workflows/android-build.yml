@@ -1,179 +1,175 @@
 name: Android Build
 
-  on:
-    push:
-      branches: [main]
-    pull_request:
-      branches: [main]
-    workflow_dispatch:
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
 
-  jobs:
-    build:
-      name: Build Android APK (arm64)
-      runs-on: ubuntu-latest
-      timeout-minutes: 60
+jobs:
+  build:
+    name: Build Android APK (arm64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
 
-      steps:
-        - name: Checkout repository
-          uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-        - name: Set up JDK 17
-          uses: actions/setup-java@v4
-          with:
-            java-version: '17'
-            distribution: 'temurin'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-        - name: Set up Flutter
-          uses: subosito/flutter-action@v2
-          with:
-            flutter-version: '3.29.3'
-            channel: 'stable'
-            cache: true
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          channel: 'stable'
+          cache: true
 
-        - name: Install NDK 27 and CMake 3.22
-          run: |
-            echo "y" | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
-              "ndk;27.0.12077973" \
-              "cmake;3.22.1" \
-              --sdk_root=$ANDROID_SDK_ROOT || true
+      - name: Install NDK 27 and CMake 3.22
+        run: |
+          echo "y" | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+            "ndk;27.0.12077973" \
+            "cmake;3.22.1" \
+            --sdk_root=$ANDROID_SDK_ROOT || true
 
-        - name: Set up Node.js 20
-          uses: actions/setup-node@v4
-          with:
-            node-version: '20'
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-        - name: Clone WABOT core
-          run: |
-            git clone --depth=1 https://github.com/ferelking242/WABOT.git /tmp/wabot-core
-            echo "WABOT cloné — contenu:"
-            ls /tmp/wabot-core/
+      - name: Clone WABOT core
+        run: |
+          git clone --depth=1 https://github.com/ferelking242/WABOT.git /tmp/wabot-core
+          echo "WABOT clone OK"
+          ls /tmp/wabot-core/
 
-        - name: Copier WABOT dans wabot-android-src
-          run: |
-            mkdir -p wabot-android-src/wabot-core
-            for dir in commands lib config locales serena-assistant services api data scripts; do
-              if [ -d "/tmp/wabot-core/$dir" ]; then
-                cp -r /tmp/wabot-core/$dir wabot-android-src/wabot-core/
-                echo "  ✓ $dir"
-              fi
-            done
-            for f in main.js index.js; do
-              if [ -f "/tmp/wabot-core/$f" ]; then
-                cp /tmp/wabot-core/$f wabot-android-src/wabot-core/
-                echo "  ✓ $f"
-              fi
-            done
-            echo "WABOT copié. Contenu:"
-            ls wabot-android-src/wabot-core/
-
-        - name: Appliquer les patches Android
-          run: node wabot-android-src/scripts/patch-android.js
-
-        - name: Install wabot-android dependencies
-          working-directory: wabot-android-src
-          run: npm install
-
-        - name: Bundle wabot-android avec esbuild
-          working-directory: wabot-android-src
-          run: |
-            set -o pipefail
-            npm run build 2>&1 | tee /tmp/esbuild.log || {
-              echo "=== esbuild FAILED — logs complets ==="
-              cat /tmp/esbuild.log
-              exit 1
-            }
-            ls -lh bundle.js && echo "bundle.js créé: $(wc -c < bundle.js) bytes"
-
-        - name: Copier le bundle dans Flutter assets
-          run: |
-            cp wabot-android-src/bundle.js assets/nodejs-project/main.js
-            echo "Bundle copié: $(wc -c < assets/nodejs-project/main.js) bytes"
-
-        - name: Cache Node.js Mobile binaries
-          id: cache-nodejs-mobile
-          uses: actions/cache@v4
-          with:
-            path: |
-              android/app/src/main/jniLibs
-              android/app/src/main/cpp/node_include
-            key: nodejs-mobile-18.20.4-arm64-v5-patched
-
-        - name: Download Node.js Mobile binaries (arm64)
-          if: steps.cache-nodejs-mobile.outputs.cache-hit != 'true'
-          run: |
-            NODE_VERSION="18.20.4"
-            ZIP_URL="https://github.com/nodejs-mobile/nodejs-mobile/releases/download/v${NODE_VERSION}/nodejs-mobile-v${NODE_VERSION}-android.zip"
-            echo "Downloading Node.js Mobile v${NODE_VERSION}..."
-            curl -L -o /tmp/nodejs-mobile.zip "$ZIP_URL"
-            mkdir -p android/app/src/main/jniLibs/arm64-v8a
-            mkdir -p android/app/src/main/cpp/node_include/node
-            unzip -p /tmp/nodejs-mobile.zip "bin/arm64-v8a/libnode.so" \
-              > android/app/src/main/jniLibs/arm64-v8a/libnode.so
-            unzip /tmp/nodejs-mobile.zip "include/node/*" -d /tmp/nm-hdrs/
-            cp -r /tmp/nm-hdrs/include/node/* android/app/src/main/cpp/node_include/node/
-            echo "Node.js Mobile arm64 prêt"
-            ls -lh android/app/src/main/jniLibs/arm64-v8a/
-
-        - name: Patch libnode.so — désactiver EnableTrapHandler (fix SIGTRAP ARM64)
-          if: steps.cache-nodejs-mobile.outputs.cache-hit != 'true'
-          run: |
-            echo "=== Patch libnode.so ==="
-            python3 scripts/patch-libnode.py android/app/src/main/jniLibs/arm64-v8a/libnode.so
-            echo "=== Patch terminé ==="
-
-        - name: Bundle libc++_shared.so from NDK
-          run: |
-            NDK_PATH="$ANDROID_SDK_ROOT/ndk/27.0.12077973"
-            LIBCPP="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
-            if [ -f "$LIBCPP" ]; then
-              cp "$LIBCPP" android/app/src/main/jniLibs/arm64-v8a/libc++_shared.so
-              echo "libc++_shared.so ok"
-            else
-              echo "ERROR: libc++_shared.so not found at $LIBCPP"
-              find $NDK_PATH -name "libc++_shared.so" 2>/dev/null | head -5
-              exit 1
+      - name: Copier WABOT dans wabot-android-src
+        run: |
+          mkdir -p wabot-android-src/wabot-core
+          for dir in commands lib config locales serena-assistant services api data scripts; do
+            if [ -d "/tmp/wabot-core/$dir" ]; then
+              cp -r /tmp/wabot-core/$dir wabot-android-src/wabot-core/
+              echo "  ok $dir"
             fi
+          done
+          for f in main.js index.js; do
+            if [ -f "/tmp/wabot-core/$f" ]; then
+              cp /tmp/wabot-core/$f wabot-android-src/wabot-core/
+              echo "  ok $f"
+            fi
+          done
+          ls wabot-android-src/wabot-core/
 
-        - name: Flutter pub get
-          run: flutter pub get
+      - name: Appliquer les patches Android
+        run: node wabot-android-src/scripts/patch-android.js
 
-        - name: Restore debug keystore
-          id: cache-keystore
-          uses: actions/cache@v4
-          with:
-            path: ~/.android/debug.keystore
-            key: wabot-debug-keystore-v1
+      - name: Install wabot-android dependencies
+        working-directory: wabot-android-src
+        run: npm install
 
-        - name: Create debug keystore
-          if: steps.cache-keystore.outputs.cache-hit != 'true'
-          run: |
-            mkdir -p ~/.android
-            keytool -genkey -v \
-              -keystore ~/.android/debug.keystore \
-              -alias androiddebugkey \
-              -keyalg RSA -keysize 2048 -validity 36500 \
-              -storepass android -keypass android \
-              -dname "CN=Android Debug,O=Android,C=US"
+      - name: Bundle wabot-android avec esbuild
+        working-directory: wabot-android-src
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee /tmp/esbuild.log || {
+            echo "=== esbuild FAILED ==="
+            cat /tmp/esbuild.log
+            exit 1
+          }
+          ls -lh bundle.js
 
-        - name: Cache Gradle
-          uses: actions/cache@v4
-          with:
-            path: |
-              ~/.gradle/caches
-              ~/.gradle/wrapper
-            key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties') }}
-            restore-keys: ${{ runner.os }}-gradle-
+      - name: Copier le bundle dans Flutter assets
+        run: cp wabot-android-src/bundle.js assets/nodejs-project/main.js
 
-        - name: Build release APK (arm64)
-          run: flutter build apk --release --target-platform android-arm64
+      - name: Cache Node.js Mobile binaries
+        id: cache-nodejs-mobile
+        uses: actions/cache@v4
+        with:
+          path: |
+            android/app/src/main/jniLibs
+            android/app/src/main/cpp/node_include
+          key: nodejs-mobile-18.20.4-arm64-v5-patched
 
-        - name: Upload APK
-          uses: actions/upload-artifact@v4
-          with:
-            name: wabot-arm64-${{ github.sha }}
-            path: build/app/outputs/flutter-apk/app-release.apk
-            retention-days: 30
+      - name: Download Node.js Mobile binaries (arm64)
+        if: steps.cache-nodejs-mobile.outputs.cache-hit != 'true'
+        run: |
+          NODE_VERSION="18.20.4"
+          ZIP_URL="https://github.com/nodejs-mobile/nodejs-mobile/releases/download/v${NODE_VERSION}/nodejs-mobile-v${NODE_VERSION}-android.zip"
+          echo "Downloading Node.js Mobile v${NODE_VERSION}..."
+          curl -L -o /tmp/nodejs-mobile.zip "$ZIP_URL"
+          mkdir -p android/app/src/main/jniLibs/arm64-v8a
+          mkdir -p android/app/src/main/cpp/node_include/node
+          unzip -p /tmp/nodejs-mobile.zip "bin/arm64-v8a/libnode.so" \
+            > android/app/src/main/jniLibs/arm64-v8a/libnode.so
+          unzip /tmp/nodejs-mobile.zip "include/node/*" -d /tmp/nm-hdrs/
+          cp -r /tmp/nm-hdrs/include/node/* android/app/src/main/cpp/node_include/node/
+          echo "Node.js Mobile arm64 pret"
+          ls -lh android/app/src/main/jniLibs/arm64-v8a/
 
-        - name: APK size
-          run: ls -lh build/app/outputs/flutter-apk/*.apk || true
-  
+      - name: Patch libnode.so - desactiver EnableTrapHandler (fix SIGTRAP ARM64)
+        if: steps.cache-nodejs-mobile.outputs.cache-hit != 'true'
+        run: |
+          echo "=== Patch libnode.so ==="
+          python3 scripts/patch-libnode.py android/app/src/main/jniLibs/arm64-v8a/libnode.so
+          echo "=== Patch termine ==="
+
+      - name: Bundle libc++_shared.so from NDK
+        run: |
+          NDK_PATH="$ANDROID_SDK_ROOT/ndk/27.0.12077973"
+          LIBCPP="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
+          if [ -f "$LIBCPP" ]; then
+            cp "$LIBCPP" android/app/src/main/jniLibs/arm64-v8a/libc++_shared.so
+            echo "libc++_shared.so ok"
+          else
+            echo "ERROR: libc++_shared.so not found at $LIBCPP"
+            find $NDK_PATH -name "libc++_shared.so" 2>/dev/null | head -5
+            exit 1
+          fi
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Restore debug keystore
+        id: cache-keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: wabot-debug-keystore-v1
+
+      - name: Create debug keystore
+        if: steps.cache-keystore.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.android
+          keytool -genkey -v \
+            -keystore ~/.android/debug.keystore \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 36500 \
+            -storepass android -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Build release APK (arm64)
+        run: flutter build apk --release --target-platform android-arm64
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: wabot-arm64-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      - name: APK size
+        run: ls -lh build/app/outputs/flutter-apk/*.apk || true
