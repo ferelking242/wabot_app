@@ -36,6 +36,16 @@ class AuthNotifier extends StateNotifier<bool?> {
     loadedNotifier.notifyListeners();
   }
 
+  Future<void> signIn(String apiKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (apiKey.isNotEmpty) {
+      await prefs.setString(AppConstants.keyApiKey, apiKey);
+    }
+    await prefs.setBool(AppConstants.keySetupDone, true);
+    state = true;
+    loadedNotifier.notifyListeners();
+  }
+
   Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConstants.keySetupDone);
