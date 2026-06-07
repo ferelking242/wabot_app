@@ -93,7 +93,7 @@ jobs:
           path: |
             android/app/src/main/jniLibs
             android/app/src/main/cpp/node_include
-          key: nodejs-mobile-18.20.4-arm64-v10-patched
+          key: nodejs-mobile-18.20.4-arm64-v11-patched
 
       - name: Download Node.js Mobile binaries (arm64)
         if: steps.cache-nodejs-mobile.outputs.cache-hit != 'true'
