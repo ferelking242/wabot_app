@@ -260,6 +260,15 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> exportSession() async {
+    try {
+      final resp = await _dio.get('/api/v1/session/export');
+      return (resp.data as Map<String, dynamic>?) ?? {};
+    } on DioException catch (e) {
+      return {'success': false, 'error': e.response?.data?['error'] ?? e.message};
+    }
+  }
+
   // ── Mock fallbacks (metrics / analytics only) ────────────────────────────
 
   Map<String, dynamic> _mockMetrics() => {
