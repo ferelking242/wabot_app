@@ -66,21 +66,35 @@
   const LOG_DIR_EXT = '/storage/emulated/0/wabot/logs';
   const fs = require('fs');
 
+  // Niveau → libellé padded 5 chars
+  const _LVL = { INFO:'INFO ', WARN:'WARN ', ERROR:'ERROR', CMD:'CMD  ', DEBUG:'DEBUG', OK:'OK   ' };
+
   function sanitize(str) {
     if (typeof str !== 'string') str = String(str);
     return str
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
       .replace(/\x1b\[[0-9;]*[mGKHF]/g, '')
-      .substring(0, 400);
+      .substring(0, 500);
   }
 
   function _safeLog(level, msg) {
     try {
-      const entry = { level, msg: sanitize(msg), time: new Date().toISOString() };
+      const now   = new Date();
+      const hh    = String(now.getHours()).padStart(2, '0');
+      const mm    = String(now.getMinutes()).padStart(2, '0');
+      const ss    = String(now.getSeconds()).padStart(2, '0');
+      const ms    = String(now.getMilliseconds()).padStart(3, '0');
+      const clean = sanitize(msg);
+      const entry = { level, msg: clean, time: now.toISOString() };
       logs.push(entry);
-      if (logs.length > 300) logs.shift();
-      console.log('[' + level + '] ' + entry.msg);
-      _appendToLogFile(entry.time + ' [' + level + '] ' + entry.msg + '\n');
+      if (logs.length > 500) logs.shift();
+
+      const lvl = _LVL[level] || (level + '     ').slice(0, 5);
+      // Console : heure courte lisible
+      console.log(`[${hh}:${mm}:${ss}] [${lvl}] ${clean}`);
+      // Fichier : date+heure complète ISO lisible
+      const isoShort = now.toISOString().replace('T', ' ').slice(0, 23);
+      _appendToLogFile(`${isoShort} [${lvl}] ${clean}\n`);
     } catch (_) {}
   }
 
@@ -89,10 +103,21 @@
     try {
       fs.mkdirSync(LOG_DIR_INT, { recursive: true });
       _logFileInt = path.join(LOG_DIR_INT, 'wabot_node.log');
+      // Rotation si > 5 Mo
+      try {
+        if (fs.existsSync(_logFileInt) && fs.statSync(_logFileInt).size > 5 * 1024 * 1024) {
+          fs.renameSync(_logFileInt, _logFileInt.replace('.log', '_old.log'));
+        }
+      } catch (_) {}
     } catch (_) {}
     try {
       fs.mkdirSync(LOG_DIR_EXT, { recursive: true });
       _logFileExt = path.join(LOG_DIR_EXT, 'wabot_node.log');
+      try {
+        if (fs.existsSync(_logFileExt) && fs.statSync(_logFileExt).size > 5 * 1024 * 1024) {
+          fs.renameSync(_logFileExt, _logFileExt.replace('.log', '_old.log'));
+        }
+      } catch (_) {}
     } catch (_) {}
   }
 
@@ -101,20 +126,26 @@
     try { if (_logFileExt) fs.appendFileSync(_logFileExt, line); } catch (_) {}
   }
 
-  // ── Safe require : tout module manquant retourne {} sans planter ──────────
+  // ── Safe require : tout module manquant retourne un stub sans planter ──────
+  // Les modules non-trouvés sont groupés et affichés en 1 seule ligne après 3s
+  const _stubbedSet = new Set();
+  let   _stubbedTimer = null;
+  function _flushStubbedWarning() {
+    if (_stubbedSet.size === 0) return;
+    _safeLog('WARN', `Modules non-bundlés (${_stubbedSet.size}): ${[..._stubbedSet].join(', ')}`);
+    _stubbedSet.clear();
+    _stubbedTimer = null;
+  }
+
   ;(function patchModuleLoad() {
     const Module = require('module');
     const _load  = Module._load.bind(Module);
     Module._load = function(request, parent, isMain) {
-      // Pure-JS fallbacks: addons natifs ws compiles x86_64, pas ARM64
+      // Fallbacks pure-JS pour addons natifs compilés x86_64 incompatibles ARM64
       if (request === 'bufferutil') {
         return {
-          mask: function(src, msk, out, off, len) {
-            for (var i = 0; i < len; i++) out[off + i] = src[i] ^ msk[i & 3];
-          },
-          unmask: function(buf, msk) {
-            for (var i = 0; i < buf.length; i++) buf[i] ^= msk[i & 3];
-          }
+          mask:   function(src, msk, out, off, len) { for (var i=0;i<len;i++) out[off+i]=src[i]^msk[i&3]; },
+          unmask: function(buf, msk) { for (var i=0;i<buf.length;i++) buf[i]^=msk[i&3]; }
         };
       }
       if (request === 'utf-8-validate') {
@@ -124,13 +155,15 @@
         return _load(request, parent, isMain);
       } catch (err) {
         if (err.code === 'MODULE_NOT_FOUND') {
+          // Grouper les warnings : 1 ligne résumé au lieu de 1 ligne par module
+          _stubbedSet.add(request);
+          if (!_stubbedTimer) _stubbedTimer = setTimeout(_flushStubbedWarning, 3000);
           const stub = () => stub;
           stub.default = stub;
           stub.__esModule = true;
           stub.prototype = stub;
           ['connect','create','build','parse','encode','decode','load','get','set',
            'start','stop','run','execute','command','handler','process'].forEach(k => { stub[k] = stub; });
-          _safeLog('WARN', 'MODULE_NOT_FOUND (stubbed): ' + request);
           return stub;
         }
         throw err;
