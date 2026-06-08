@@ -190,6 +190,8 @@
   let connectedPhone = '', connectedName = '', connectedJid = '';
   let messagesTotal = 0, commandsTotal = 0;
   const botStartTime = Date.now();
+  // Persisté entre reconnexions pour éviter de boucler sur les mêmes messages cassés
+  const msgRetryCounterCache = new Map();
 
   // Stats pour analytics
   const dailyActivity = [];
@@ -302,24 +304,34 @@
       version = [2, 3000, 1023561582];
     }
 
+    // Logger Baileys : filtre le bruit Signal (erreurs de déchiffrement vides, non-actionnables)
+    function _isBaileysNoise(m) {
+      if (!m || typeof m !== 'object') return false;
+      // Filtre les objets avec error vide ({}), avec ou sans autres props
+      const errVal = m.error;
+      if (errVal !== undefined && typeof errVal === 'object' && Object.keys(errVal).length === 0) return true;
+      const errVal2 = m.err;
+      if (errVal2 !== undefined && typeof errVal2 === 'object' && Object.keys(errVal2).length === 0) return true;
+      return false;
+    }
     const silentLogger = {
       level: 'silent',
       trace: () => {}, debug: () => {}, info: () => {},
-      warn:  m => { const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}' || _s === '{"error":{}}' || _s === '{"err":{}}') return; _safeLog('WARN', _s.slice(0, 200)); },
-      error: m => { const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}' || _s === '{"error":{}}' || _s === '{"err":{}}') return; _safeLog('ERROR', _s.slice(0, 200)); },
-      fatal: m => { const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}' || _s === '{"error":{}}' || _s === '{"err":{}}') return; _safeLog('ERROR', _s.slice(0, 200)); },
+      warn:  m => { if (_isBaileysNoise(m)) return; const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}') return; _safeLog('WARN', _s.slice(0, 200)); },
+      error: m => { if (_isBaileysNoise(m)) return; const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}') return; _safeLog('ERROR', _s.slice(0, 200)); },
+      fatal: m => { if (_isBaileysNoise(m)) return; const _s = typeof m === 'object' ? JSON.stringify(m) : String(m); if (_s === '{}') return; _safeLog('ERROR', _s.slice(0, 200)); },
       child: () => silentLogger,
     };
 
-    // makeCacheableSignalKeyStore est requis pour le pairing code
+    // FIX CRITIQUE : makeCacheableSignalKeyStore requis pour éviter la corruption des clés Signal
+    // Sans ça, les accès concurrents aux clés Signal échouent → {"error":{}} en boucle → messages non déchiffrés
     let authState;
     try {
       authState = {
         creds: state.creds,
-        keys:  state.keys,
+        keys:  makeCacheableSignalKeyStore(state.keys, silentLogger),
       };
     } catch (_) {
-      // fallback si version de baileys sans makeCacheableSignalKeyStore
       authState = state;
     }
 
@@ -327,12 +339,16 @@
       version,
       auth: authState,
       printQRInTerminal: false,
-      // Browsers.windows('Chrome') est compatible avec le pairing code WhatsApp
       browser: Browsers ? Browsers.windows('Chrome') : ['Wabot', 'Chrome', '2.0.0'],
       logger: silentLogger,
       connectTimeoutMs: 60000,
       retryRequestDelayMs: 2000,
-      msgRetryCounterCache: new Map(),
+      // FIX : cache persisté entre reconnexions — évite de boucler sur les mêmes messages cassés
+      msgRetryCounterCache,
+      // FIX : ne pas synchroniser l'historique au reconnect — évite le spam de déchiffrement sur les vieux messages
+      syncFullHistory: false,
+      // FIX : ne pas passer en ligne automatiquement — évite certains triggers 515
+      markOnlineOnConnect: false,
       getMessage: async (key) => {
         try {
           const jid2 = jidNormalizedUser(key.remoteJid);
@@ -381,6 +397,14 @@
 
           messagesTotal++;
           _recordActivity('messages');
+
+          // Log les commandes reçues pour débogage
+          const _txt = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
+          if (_txt && _txt.trim().startsWith('.')) {
+            const _from = m.key.participantAlt || m.key.participant || m.key.remoteJid || '';
+            _safeLog('INFO', `CMD: "${_txt.trim().slice(0, 80)}" de ${_from.split('@')[0]} dans ${m.key.remoteJid?.split('@')[0]}`);
+            commandsTotal++;
+          }
 
           if (messageHandler) {
             try {
