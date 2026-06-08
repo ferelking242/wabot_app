@@ -375,7 +375,8 @@
         if (!Array.isArray(msgs) || msgs.length === 0) return;
 
         for (const m of msgs) {
-          if (m.key?.fromMe === true) continue;
+          // Skip only protocol/system messages sent by the bot itself, NOT commands sent by the owner
+          if (m.key?.fromMe === true && m.message?.protocolMessage) continue;
           if (m.key?.remoteJid === 'status@broadcast') continue;
 
           messagesTotal++;
