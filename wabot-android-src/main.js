@@ -126,6 +126,34 @@
     try { if (_logFileExt) fs.appendFileSync(_logFileExt, line); } catch (_) {}
   }
 
+  // ── Redirect console.error + console.warn → _safeLog ─────────────────────
+  // Capture les erreurs des modules WABOT (commandHandler, commandes, etc.)
+  // console.log reste en logcat Android mais n'apparaît pas dans le panel Flutter
+  ;(function patchConsole() {
+    const _origErr  = console.error.bind(console);
+    const _origWarn = console.warn.bind(console);
+    function _argsToStr(args) {
+      return args.map(a => {
+        if (a === null || a === undefined) return String(a);
+        if (a instanceof Error) return a.message;
+        if (typeof a === 'object') {
+          try { const s = JSON.stringify(a); return s === '{}' ? null : s; }
+          catch (_) { return String(a); }
+        }
+        return String(a);
+      }).filter(Boolean).join(' ').slice(0, 400);
+    }
+    console.error = (...args) => {
+      const s = _argsToStr(args);
+      if (s) _safeLog('ERROR', s);
+    };
+    console.warn = (...args) => {
+      const s = _argsToStr(args);
+      if (!s || s === '[object Object]') return;
+      _safeLog('WARN', s);
+    };
+  })();
+
   // ── Safe require : tout module manquant retourne un stub sans planter ──────
   // Les modules non-trouvés sont groupés et affichés en 1 seule ligne après 3s
   const _stubbedSet = new Set();
@@ -431,11 +459,11 @@
           messagesTotal++;
           _recordActivity('messages');
 
-          // Log les commandes reçues pour débogage
+          // Log les commandes reçues (niveau CMD → filtre vert Flutter)
           const _txt = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
           if (_txt && _txt.trim().startsWith('.')) {
             const _from = m.key.participantAlt || m.key.participant || m.key.remoteJid || '';
-            _safeLog('INFO', `CMD: "${_txt.trim().slice(0, 80)}" de ${_from.split('@')[0]} dans ${m.key.remoteJid?.split('@')[0]}`);
+            _safeLog('CMD', `"${_txt.trim().slice(0, 80)}" de ${_from.split('@')[0]} dans ${(m.key.remoteJid || '').split('@')[0]}`);
             commandsTotal++;
           }
 
