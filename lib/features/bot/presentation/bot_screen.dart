@@ -41,6 +41,7 @@ class _BotScreenState extends ConsumerState<BotScreen>
   List<Map<String, dynamic>> _logs = [];
   bool _loadingStatus = true;
   bool _actionLoading = false;
+  bool _paused = false;
   Map<String, dynamic> _deviceInfo = {};
 
   static const _TAG = 'BotScreen';
@@ -353,6 +354,19 @@ class _BotScreenState extends ConsumerState<BotScreen>
             const SizedBox(height: 10),
             _ControlsBox(
               loading: _actionLoading,
+              paused: _paused,
+              onPauseToggle: () => _action('pause', () async {
+                final api = ref.read(apiServiceProvider);
+                final nowPaused = !_paused;
+                final ok = nowPaused ? await api.pauseBot() : await api.resumeBot();
+                if (ok) {
+                  setState(() => _paused = nowPaused);
+                  _showSnack(nowPaused
+                      ? '⏸ Bot mis en pause — messages suspendus'
+                      : '▶ Bot repris — réception active',
+                      nowPaused ? _orange : _g);
+                }
+              }),
               onRestart: () => _action('restart', () async {
                 final api = ref.read(apiServiceProvider);
                 await api.restartBot();
@@ -621,12 +635,13 @@ class _StatChip extends StatelessWidget {
 
 // ─── Controls Box ─────────────────────────────────────────────────────────────
 class _ControlsBox extends StatelessWidget {
-  final bool loading;
-  final VoidCallback onRestart, onDisconnect, onRelaunch, onRefresh;
+  final bool loading, paused;
+  final VoidCallback onRestart, onDisconnect, onRelaunch, onRefresh, onPauseToggle;
 
   const _ControlsBox({
-    required this.loading, required this.onRestart,
-    required this.onDisconnect, required this.onRelaunch, required this.onRefresh,
+    required this.loading, required this.paused,
+    required this.onRestart, required this.onDisconnect,
+    required this.onRelaunch, required this.onRefresh, required this.onPauseToggle,
   });
 
   @override
@@ -639,6 +654,62 @@ class _ControlsBox extends StatelessWidget {
         border: Border.all(color: _border),
       ),
       child: Column(children: [
+        // ── Ligne 0 : Pause / Reprendre ────────────────────────────────
+        GestureDetector(
+          onTap: loading ? null : onPauseToggle,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: paused
+                    ? [_g.withOpacity(0.15), _g.withOpacity(0.08)]
+                    : [_orange.withOpacity(0.15), _orange.withOpacity(0.08)],
+                begin: Alignment.centerLeft, end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: paused ? _g.withOpacity(0.4) : _orange.withOpacity(0.4),
+                  width: 1.3),
+            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(
+                paused ? Icons.play_circle_rounded : Icons.pause_circle_rounded,
+                color: paused ? _g : _orange, size: 22),
+              const SizedBox(width: 10),
+              Column(crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min, children: [
+                Text(paused ? 'Reprendre' : 'Mettre en pause',
+                    style: TextStyle(
+                      color: paused ? _g : _orange,
+                      fontSize: 13, fontWeight: FontWeight.w800,
+                    )),
+                Text(
+                  paused ? 'Le bot est en pause — reprendre les messages'
+                         : 'Suspendre temporairement la réception',
+                  style: TextStyle(
+                    color: (paused ? _g : _orange).withOpacity(0.6),
+                    fontSize: 9.5,
+                  )),
+              ]),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: (paused ? _g : _orange).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(paused ? 'EN PAUSE' : 'ACTIF',
+                    style: TextStyle(
+                      color: paused ? _g : _orange,
+                      fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5,
+                    )),
+              ),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 10),
         // ── Ligne 1 : Redémarrer + Déconnecter ─────────────────────────
         Row(children: [
           Expanded(child: _CtrlBtn(
@@ -938,45 +1009,145 @@ class _FullscreenLogsPage extends StatefulWidget {
 }
 
 class _FullscreenLogsPageState extends State<_FullscreenLogsPage> {
-  String _filter = 'ALL';
+  String _filter  = 'ALL';
+  String _search  = '';
+  bool   _showSearch = false;
+  final _searchCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
 
-  List<Map<String, dynamic>> get _filtered => _filter == 'ALL'
-      ? widget.logs
-      : widget.logs.where((l) =>
-          (l['level'] as String? ?? '').toUpperCase() == _filter).toList();
+  static const _filters = ['ALL', 'CMD', 'INFO', 'WARN', 'ERROR', 'OK'];
 
   Color _lvlColor(String l) {
     switch (l.toUpperCase()) {
       case 'ERROR': return _red;
       case 'WARN':  return _orange;
+      case 'CMD':   return _purple;
+      case 'OK':    return _g;
       default:      return _blue;
     }
   }
 
+  bool _matchFilter(Map<String, dynamic> l) {
+    if (_filter == 'ALL') return true;
+    if (_filter == 'CMD') {
+      final msg = (l['msg'] as String? ?? '').toLowerCase();
+      return msg.contains('cmd') || msg.contains('command') || msg.startsWith('.');
+    }
+    if (_filter == 'OK') {
+      final msg = (l['msg'] as String? ?? '').toLowerCase();
+      return msg.contains('✓') || msg.contains('ok') || msg.contains('success');
+    }
+    return (l['level'] as String? ?? '').toUpperCase() == _filter;
+  }
+
+  List<Map<String, dynamic>> get _filtered {
+    var list = widget.logs.where(_matchFilter).toList();
+    if (_search.isNotEmpty) {
+      final q = _search.toLowerCase();
+      list = list.where((l) =>
+          (l['msg'] as String? ?? '').toLowerCase().contains(q) ||
+          (l['level'] as String? ?? '').toLowerCase().contains(q)).toList();
+    }
+    return list;
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final filtered = _filtered;
+    final total    = widget.logs.length;
+    final errors   = widget.logs.where((l) =>
+        (l['level'] as String? ?? '').toUpperCase() == 'ERROR').length;
+    final warns    = widget.logs.where((l) =>
+        (l['level'] as String? ?? '').toUpperCase() == 'WARN').length;
+
     return Scaffold(
       backgroundColor: const Color(0xFF060709),
       appBar: AppBar(
         backgroundColor: _card,
         foregroundColor: _ink,
-        title: const Text('Logs en direct',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: _showSearch
+            ? TextField(
+                controller: _searchCtrl,
+                autofocus: true,
+                style: const TextStyle(color: _ink, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Rechercher dans les logs…',
+                  hintStyle: const TextStyle(color: _muted, fontSize: 13),
+                  border: InputBorder.none,
+                  suffixIcon: _search.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () => setState(() {
+                            _search = '';
+                            _searchCtrl.clear();
+                          }),
+                          child: const Icon(Icons.close_rounded, color: _muted, size: 16))
+                      : null,
+                ),
+                onChanged: (v) => setState(() => _search = v),
+              )
+            : RichText(text: TextSpan(
+                text: 'Logs ',
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16,
+                    color: _ink),
+                children: [
+                  TextSpan(text: '($total)',
+                      style: TextStyle(color: _muted, fontSize: 13,
+                          fontWeight: FontWeight.w500)),
+                  if (errors > 0)
+                    TextSpan(text: '  $errors ERR',
+                        style: const TextStyle(color: _red, fontSize: 11,
+                            fontWeight: FontWeight.w700)),
+                  if (warns > 0)
+                    TextSpan(text: '  $warns WARN',
+                        style: const TextStyle(color: _orange, fontSize: 11,
+                            fontWeight: FontWeight.w700)),
+                ],
+              )),
         actions: [
+          IconButton(
+            icon: Icon(_showSearch ? Icons.close_rounded : Icons.search_rounded,
+                color: _muted, size: 20),
+            onPressed: () => setState(() {
+              _showSearch = !_showSearch;
+              if (!_showSearch) { _search = ''; _searchCtrl.clear(); }
+            }),
+          ),
+          IconButton(
+            icon: const Icon(Icons.vertical_align_bottom_rounded, color: _muted, size: 20),
+            tooltip: 'Défiler vers le bas',
+            onPressed: () => _scrollCtrl.animateTo(
+              0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            ),
+          ),
           TextButton.icon(
-            icon: const Icon(Icons.copy_rounded, size: 16, color: _muted),
-            label: const Text('Copier', style: TextStyle(color: _muted, fontSize: 13)),
+            icon: const Icon(Icons.copy_rounded, size: 15, color: _muted),
+            label: const Text('Copier', style: TextStyle(color: _muted, fontSize: 12)),
             onPressed: () async {
               final text = widget.logs.map((l) {
-                final t = l['time'] as String? ?? '';
+                final t   = l['time']  as String? ?? '';
                 final lvl = (l['level'] as String? ?? '').toUpperCase();
-                return '[$t] $lvl ${l['msg'] ?? ''}';
+                return '[$t] [$lvl] ${l['msg'] ?? ''}';
               }).join('\n');
               await Clipboard.setData(ClipboardData(text: text));
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                   content: Text('Logs copiés ✓'), backgroundColor: _g,
-                  behavior: SnackBarBehavior.floating, duration: Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                  duration: Duration(seconds: 2),
                 ));
               }
             },
@@ -984,50 +1155,169 @@ class _FullscreenLogsPageState extends State<_FullscreenLogsPage> {
         ],
       ),
       body: Column(children: [
-        // Filtres
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: ['ALL', 'INFO', 'WARN', 'ERROR'].map((lvl) {
-              final sel = lvl == _filter;
-              final col = _lvlColor(lvl);
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () => setState(() => _filter = lvl),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 160),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: sel ? col.withOpacity(0.18) : _card,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: sel ? col.withOpacity(0.5) : _border),
+        // ── Barre filtres ────────────────────────────────────────────────────
+        Container(
+          color: _card.withOpacity(0.6),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: _filters.map((lvl) {
+                final sel = lvl == _filter;
+                final col = _lvlColor(lvl);
+                final cnt = lvl == 'ALL'
+                    ? total
+                    : lvl == 'CMD'
+                        ? widget.logs.where((l) {
+                            final m = (l['msg'] as String? ?? '').toLowerCase();
+                            return m.contains('cmd') || m.contains('command') ||
+                                m.startsWith('.');
+                          }).length
+                        : lvl == 'OK'
+                            ? widget.logs.where((l) {
+                                final m = (l['msg'] as String? ?? '').toLowerCase();
+                                return m.contains('✓') || m.contains('ok') ||
+                                    m.contains('success');
+                              }).length
+                            : widget.logs.where((l) =>
+                                (l['level'] as String? ?? '').toUpperCase() == lvl).length;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _filter = lvl),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: sel ? col.withOpacity(0.18) : const Color(0xFF0F1117),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: sel ? col.withOpacity(0.5) : _border),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(lvl,
+                            style: TextStyle(color: sel ? col : _muted, fontSize: 11,
+                                fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: col.withOpacity(sel ? 0.2 : 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text('$cnt',
+                              style: TextStyle(color: col.withOpacity(sel ? 1 : 0.5),
+                                  fontSize: 9, fontWeight: FontWeight.w800)),
+                        ),
+                      ]),
                     ),
-                    child: Text(lvl,
-                        style: TextStyle(color: sel ? col : _muted, fontSize: 12,
-                            fontWeight: FontWeight.w700)),
                   ),
-                ),
-              );
-            }).toList(),
+                );
+              }).toList(),
+            ),
           ),
         ),
-        // Liste
+
+        // ── Stats bar ────────────────────────────────────────────────────────
+        if (_search.isNotEmpty)
+          Container(
+            color: const Color(0xFF060709),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            child: Row(children: [
+              const Icon(Icons.search_rounded, color: _muted, size: 13),
+              const SizedBox(width: 6),
+              Text('${filtered.length} résultats pour "$_search"',
+                  style: const TextStyle(color: _muted, fontSize: 11)),
+            ]),
+          ),
+
+        // ── Liste des logs ───────────────────────────────────────────────────
         Expanded(
-          child: _filtered.isEmpty
-              ? const Center(child: Text('Aucun log', style: TextStyle(color: _muted)))
+          child: filtered.isEmpty
+              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.receipt_long_outlined, color: _muted, size: 40),
+                  const SizedBox(height: 12),
+                  Text(
+                    _search.isNotEmpty
+                        ? 'Aucun log ne correspond à "$_search"'
+                        : 'Aucun log pour ce filtre',
+                    style: const TextStyle(color: _muted, fontSize: 13)),
+                ]))
               : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                  itemCount: _filtered.length,
+                  controller: _scrollCtrl,
+                  padding: const EdgeInsets.fromLTRB(0, 4, 0, 32),
+                  itemCount: filtered.length,
                   reverse: true,
                   itemBuilder: (_, i) {
-                    final log = _filtered[_filtered.length - 1 - i];
-                    return _LogLine(log: log);
+                    final log = filtered[filtered.length - 1 - i];
+                    return _FullLogLine(log: log, lvlColor: _lvlColor);
                   },
                 ),
         ),
       ]),
     );
+  }
+}
+
+// ─── Log line fullscreen (plus détaillé) ─────────────────────────────────────
+class _FullLogLine extends StatelessWidget {
+  final Map<String, dynamic> log;
+  final Color Function(String) lvlColor;
+  const _FullLogLine({required this.log, required this.lvlColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final lvl = (log['level'] as String? ?? 'INFO').toUpperCase();
+    final msg = log['msg'] as String? ?? '';
+    final t   = log['time'] as String? ?? '';
+    final col = lvlColor(lvl);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: col.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: col.withOpacity(0.1)),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Level badge
+        Container(
+          width: 42,
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          decoration: BoxDecoration(
+            color: col.withOpacity(0.14),
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Text(
+            lvl.length > 4 ? '${lvl.substring(0, 4)}.' : lvl,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: col, fontSize: 9, fontWeight: FontWeight.w900,
+                letterSpacing: 0.3),
+          ),
+        ),
+        const SizedBox(width: 10),
+        // Contenu
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(msg, style: const TextStyle(color: Color(0xFFDDE1E7), fontSize: 12.5,
+              fontFamily: 'monospace', height: 1.4)),
+          if (t.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text(t, style: const TextStyle(color: _muted, fontSize: 9.5)),
+          ],
+        ])),
+        // Icône en fonction du niveau
+        Icon(_lvlIcon(lvl), color: col.withOpacity(0.5), size: 12),
+      ]),
+    );
+  }
+
+  static IconData _lvlIcon(String lvl) {
+    switch (lvl) {
+      case 'ERROR': return Icons.error_outline_rounded;
+      case 'WARN':  return Icons.warning_amber_rounded;
+      case 'CMD':   return Icons.terminal_rounded;
+      case 'OK':    return Icons.check_circle_outline_rounded;
+      default:      return Icons.info_outline_rounded;
+    }
   }
 }

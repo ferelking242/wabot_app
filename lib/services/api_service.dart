@@ -127,7 +127,19 @@ class ApiService {
 
   int _parseRam(dynamic val) {
     if (val == null) return 0;
-    return int.tryParse(val.toString().replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+    if (val is int) {
+      if (val > 10 * 1024 * 1024) return val ~/ (1024 * 1024); // bytes → MB
+      if (val > 10 * 1024) return val ~/ 1024;                 // KB → MB
+      return val;
+    }
+    final s = val.toString().trim();
+    if (s.isEmpty) return 0;
+    final num = int.tryParse(s.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+    // Raw bytes (> 10 MB threshold)
+    if (num > 10 * 1024 * 1024) return num ~/ (1024 * 1024);
+    // Raw KB (> 10 MB threshold, no 'MB' in string)
+    if (num > 10 * 1024 && !s.toUpperCase().contains('MB')) return num ~/ 1024;
+    return num; // Already MB
   }
 
   // ── Groups ───────────────────────────────────────────────────────────────
@@ -250,6 +262,20 @@ class ApiService {
   }
 
   Future<bool> stopBot() async => false;
+
+  Future<bool> pauseBot() async {
+    try {
+      await _dio.post('/api/v1/instance/presence', data: {'type': 'unavailable'});
+      return true;
+    } catch (_) { return false; }
+  }
+
+  Future<bool> resumeBot() async {
+    try {
+      await _dio.post('/api/v1/instance/presence', data: {'type': 'available'});
+      return true;
+    } catch (_) { return false; }
+  }
 
   Future<bool> deleteSession(String sessionId) async {
     try {

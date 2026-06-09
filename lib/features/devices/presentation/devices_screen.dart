@@ -31,7 +31,7 @@ class DevicesScreen extends ConsumerWidget {
                 ElevatedButton.icon(
                   icon: const Icon(Icons.qr_code, size: 16),
                   label: const Text('Link Device'),
-                  onPressed: () => context.go(AppConstants.routePairing),
+                  onPressed: () => context.go(AppConstants.routePair),
                 ),
               ],
             ),
