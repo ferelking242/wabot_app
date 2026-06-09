@@ -171,6 +171,16 @@ class _WabotMobileShellState extends State<WabotMobileShell>
                           Expanded(child: widget.child),
                         ]),
                       ),
+                      bottomNavigationBar: _BottomNav(
+                        currentRoute: location,
+                        onTap: (route) {
+                          if (route == '__menu__') {
+                            _toggleMenu();
+                          } else {
+                            context.go(route);
+                          }
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -272,59 +282,6 @@ class _MobileHeader extends StatelessWidget {
           ]),
         ),
 
-        // ── Tab nav bar ────────────────────────────────────────────────────
-        Container(
-          color: AppColors.surface,
-          height: 40,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(12, 5, 12, 0),
-            children: [
-              for (final g in kNavGroups)
-                for (final item in g.items) ...[
-                  Builder(builder: (ctx) {
-                    final sel = currentRoute == item.route ||
-                        (item.route != '/' &&
-                            currentRoute.startsWith(item.route));
-                    return GestureDetector(
-                      onTap: () => ctx.go(item.route),
-                      child: AnimatedContainer(
-                        duration: 200.ms,
-                        margin: const EdgeInsets.only(right: 4),
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 14),
-                        decoration: BoxDecoration(
-                          color: sel ? _accent : Colors.transparent,
-                          borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(9)),
-                        ),
-                        child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                  sel
-                                      ? item.activeIcon
-                                      : item.icon,
-                                  size: 14,
-                                  color: sel ? Colors.black : _shMute),
-                              const SizedBox(width: 6),
-                              Text(item.label,
-                                  style: TextStyle(
-                                      color: sel
-                                          ? Colors.black
-                                          : _shMute,
-                                      fontSize: 12,
-                                      fontWeight: sel
-                                          ? FontWeight.w700
-                                          : FontWeight.w500)),
-                            ]),
-                      ),
-                    );
-                  }),
-                ],
-            ],
-          ),
-        ),
         Container(height: 1, color: _border),
       ],
     );
@@ -619,6 +576,98 @@ class _DrawerNavItem extends StatelessWidget {
                       color: _accent, shape: BoxShape.circle),
                 ),
             ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bottom Navigation Bar
+// ─────────────────────────────────────────────────────────────────────────────
+const _kBottomItems = [
+  _BNavItem(icon: Icons.dashboard_outlined, activeIcon: Icons.dashboard_rounded,
+      label: 'Dashboard', route: AppConstants.routeDashboard),
+  _BNavItem(icon: Icons.smart_toy_outlined, activeIcon: Icons.smart_toy_rounded,
+      label: 'Bot', route: AppConstants.routeBot),
+  _BNavItem(icon: Icons.chat_bubble_outline_rounded,
+      activeIcon: Icons.chat_bubble_rounded, label: 'Chats',
+      route: AppConstants.routeChats),
+  _BNavItem(icon: Icons.bar_chart_outlined, activeIcon: Icons.bar_chart_rounded,
+      label: 'Stats', route: AppConstants.routeAnalytics),
+  _BNavItem(icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view_rounded,
+      label: 'Plus', route: '__menu__'),
+];
+
+class _BNavItem {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final String route;
+  const _BNavItem({required this.icon, required this.activeIcon,
+      required this.label, required this.route});
+}
+
+class _BottomNav extends StatelessWidget {
+  final String currentRoute;
+  final ValueChanged<String> onTap;
+  const _BottomNav({required this.currentRoute, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0C0F),
+        border: Border(top: BorderSide(color: _border)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.4),
+              blurRadius: 24, offset: const Offset(0, -4)),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            children: _kBottomItems.map((item) {
+              final isMenu = item.route == '__menu__';
+              final sel = !isMenu && (currentRoute == item.route ||
+                  (item.route != '/' && currentRoute.startsWith(item.route)));
+              final col = sel ? _accent : _shMute;
+              return Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onTap(item.route),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Stack(alignment: Alignment.center, children: [
+                          if (sel)
+                            Container(
+                              width: 42, height: 26,
+                              decoration: BoxDecoration(
+                                color: _accent.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(13),
+                              ),
+                            ),
+                          Icon(sel ? item.activeIcon : item.icon,
+                              size: 20, color: col),
+                        ]),
+                        const SizedBox(height: 4),
+                        Text(item.label, style: TextStyle(
+                            color: col.withOpacity(sel ? 1.0 : 0.7),
+                            fontSize: 9.5,
+                            fontWeight: sel ? FontWeight.w700 : FontWeight.w500)),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ),
       ),
