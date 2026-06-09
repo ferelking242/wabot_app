@@ -2,22 +2,25 @@ import 'dart:io' show File, Process;
 import 'dart:convert' show LineSplitter;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../services/api_service.dart';
 
-const _g      = Color(0xFF25D366);
-const _gd     = Color(0xFF128C7E);
-const _ink    = Color(0xFFF2F3F5);
-const _muted  = Color(0xFF8A9199);
-const _border = Color(0xFF1E2128);
-const _card   = Color(0xFF111316);
-const _bg     = Color(0xFF0D0E11);
-const _red    = Color(0xFFFF6B6B);
-const _blue   = Color(0xFF57B6FF);
-const _purple = Color(0xFF9B59B6);
-const _orange = Color(0xFFE67E22);
-const _teal   = Color(0xFF1ABC9C);
-const _yellow = Color(0xFFF1C40F);
+// ── Palette ───────────────────────────────────────────────────────────────────
+const _bg    = Color(0xFF060709);
+const _card  = Color(0xFF0C0F14);
+const _card2 = Color(0xFF111620);
+const _brdr  = Color(0xFF181E2C);
+const _g     = Color(0xFF25D366);
+const _gd    = Color(0xFF1AAD4B);
+const _b     = Color(0xFF4A9EFF);
+const _p     = Color(0xFF7C6FF7);
+const _o     = Color(0xFFFF9D4A);
+const _r     = Color(0xFFFF5B5B);
+const _t     = Color(0xFF20D9C0);
+const _ink   = Color(0xFFF2F3F5);
+const _sub   = Color(0xFF8A94A8);
+const _muted = Color(0xFF3D4455);
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -67,15 +70,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     }
   }
 
-  // ── Infos téléphone (Android/Linux) ───────────────────────────────────────
   Future<void> _loadDevice() async {
     if (kIsWeb) return;
     try {
-      await Future.wait([
-        _loadRam(),
-        _loadCpu(),
-        _loadStorage(),
-      ]);
+      await Future.wait([_loadRam(), _loadCpu(), _loadStorage()]);
     } catch (_) {}
   }
 
@@ -115,10 +113,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           break;
         }
       }
-      // Fréquence max depuis /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
       int freqKhz = 0;
       try {
-        final f = _readFileSync('/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq').trim();
+        final f = _readFileSync(
+            '/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq').trim();
         freqKhz = int.tryParse(f) ?? 0;
       } catch (_) {}
       if (mounted) setState(() {
@@ -161,6 +159,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     return n.toString();
   }
 
+  String _fmtMb(int mb) {
+    if (mb >= 1024) return '${(mb / 1024).toStringAsFixed(1)} GB';
+    return '$mb MB';
+  }
+
   String _fmtUptime(int seconds) {
     if (seconds <= 0) return '--';
     final h = seconds ~/ 3600;
@@ -191,7 +194,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final topCmds   = (an['topCommands'] as List? ?? []).cast<Map<String, dynamic>>();
     final maxCount  = topCmds.isNotEmpty ? (topCmds.first['count'] as int? ?? 1) : 1;
 
-    // Device stats
     final devRamUsed  = _device['ramUsedMb']  as int? ?? 0;
     final devRamTotal = _device['ramTotalMb'] as int? ?? 0;
     final devRamPct   = (_device['ramPct']    as double? ?? 0.0).clamp(0.0, 1.0);
@@ -209,802 +211,680 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         backgroundColor: _card,
         onRefresh: () async { await _load(); await _loadDevice(); },
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 36),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
           children: [
 
-            // ── Header ─────────────────────────────────────────────────────
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Dashboard', style: TextStyle(
-                    fontSize: 24, fontWeight: FontWeight.w900,
-                    color: _ink, letterSpacing: -0.5)),
-                const SizedBox(height: 4),
-                Row(children: [
-                  AnimatedBuilder(
-                    animation: _pulseCtrl,
-                    builder: (_, __) => Container(
-                      width: 7, height: 7,
-                      decoration: BoxDecoration(
-                        color: connected ? _g : _red,
-                        shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(
-                          color: (connected ? _g : _red).withOpacity(
-                              connected ? 0.3 + 0.4 * _pulseCtrl.value : 0.3),
-                          blurRadius: connected ? 4 + 4 * _pulseCtrl.value : 4,
-                        )],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(connected ? 'Bot connecté' : 'Bot hors ligne',
-                      style: TextStyle(
-                          color: connected ? _g : _red,
-                          fontSize: 12, fontWeight: FontWeight.w600)),
-                ]),
-              ])),
-              if (_loading)
-                const SizedBox(width: 20, height: 20,
-                    child: CircularProgressIndicator(color: _g, strokeWidth: 2))
-              else
-                GestureDetector(
-                  onTap: () async { await _load(); await _loadDevice(); },
-                  child: Container(
-                    width: 36, height: 36,
-                    decoration: BoxDecoration(
-                      color: _card,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _border),
-                    ),
-                    child: const Icon(Icons.refresh_rounded, color: _muted, size: 18)),
-                ),
-            ]),
-            const SizedBox(height: 20),
+            // ── Header ──────────────────────────────────────────────────────
+            _DashHeader(loading: _loading,
+                onRefresh: () async { await _load(); await _loadDevice(); })
+                .animate().fadeIn(duration: 200.ms),
 
-            // ── Hero banner : profil WhatsApp ──────────────────────────────
+            const SizedBox(height: 16),
+
+            // ── Hero ────────────────────────────────────────────────────────
             _HeroBanner(
-              connected: connected,
-              name: name,
-              phone: phone,
-              picUrl: picUrl,
-              uptime: _fmtUptime(uptime),
+              connected: connected, name: name, phone: phone,
+              picUrl: picUrl, uptime: _fmtUptime(uptime),
+              ram: ram > 0 ? '${ram} MB' : '--',
+              node: nodeVer, pulse: _pulseCtrl,
+            ).animate().fadeIn(duration: 300.ms, delay: 40.ms)
+                .slideY(begin: 0.03, curve: Curves.easeOut),
+
+            const SizedBox(height: 14),
+
+            // ── Stats 2×2 ────────────────────────────────────────────────────
+            Row(children: [
+              Expanded(child: _StatCard(icon: Icons.chat_bubble_rounded,
+                  label: 'Messages', value: _fmtNum(msgs),
+                  color: _g, growth: msgGrowth)
+                  .animate().fadeIn(duration: 300.ms, delay: 80.ms)
+                  .slideY(begin: 0.04)),
+              const SizedBox(width: 10),
+              Expanded(child: _StatCard(icon: Icons.terminal_rounded,
+                  label: 'Commandes', value: _fmtNum(cmds),
+                  color: _p, growth: cmdGrowth)
+                  .animate().fadeIn(duration: 300.ms, delay: 110.ms)
+                  .slideY(begin: 0.04)),
+            ]),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(child: _StatCard(icon: Icons.groups_rounded,
+                  label: 'Groupes', value: _fmtNum(groups), color: _t)
+                  .animate().fadeIn(duration: 300.ms, delay: 140.ms)
+                  .slideY(begin: 0.04)),
+              const SizedBox(width: 10),
+              Expanded(child: _StatCard(icon: Icons.people_rounded,
+                  label: 'Utilisateurs', value: _fmtNum(users), color: _o)
+                  .animate().fadeIn(duration: 300.ms, delay: 170.ms)
+                  .slideY(begin: 0.04)),
+            ]),
+
+            const SizedBox(height: 22),
+
+            // ── Ressources Bot ───────────────────────────────────────────────
+            _SecLabel(label: 'Ressources Bot')
+                .animate().fadeIn(delay: 200.ms),
+            const SizedBox(height: 10),
+            _BotResCard(
+              uptime: _fmtUptime(uptime), ram: ram,
+              ramTotal: ramTotal, ramPct: ramPct.toDouble(),
               nodeVer: nodeVer,
-              pulse: _pulseCtrl,
-            ),
-            const SizedBox(height: 20),
+            ).animate().fadeIn(duration: 300.ms, delay: 220.ms),
 
-            // ── Section : Vue d'ensemble ──────────────────────────────────
-            _SectionLabel(label: 'Vue d\'ensemble', trailing: '7 derniers jours'),
+            const SizedBox(height: 22),
+
+            // ── Ressources Téléphone ─────────────────────────────────────────
+            _SecLabel(label: 'Ressources Téléphone')
+                .animate().fadeIn(delay: 240.ms),
             const SizedBox(height: 10),
+            _PhoneResCard(
+              ramUsed: devRamUsed, ramTotal: devRamTotal,
+              ramPct: devRamPct.toDouble(), cpuName: cpuName,
+              cpuCores: cpuCores, cpuFreq: cpuFreq,
+              storTotal: storTotal, storUsed: storUsed,
+              storPct: storPct.toDouble(), fmtMb: _fmtMb,
+            ).animate().fadeIn(duration: 300.ms, delay: 260.ms),
 
-            Row(children: [
-              Expanded(child: _BigStat(
-                icon: Icons.chat_bubble_rounded,
-                label: 'Messages', value: _fmtNum(msgs),
-                color: _g, growth: msgGrowth, sub: 'reçus',
-              )),
-              const SizedBox(width: 10),
-              Expanded(child: _BigStat(
-                icon: Icons.terminal_rounded,
-                label: 'Commandes', value: _fmtNum(cmds),
-                color: _purple, growth: cmdGrowth, sub: 'exécutées',
-              )),
-            ]),
-            const SizedBox(height: 10),
-
-            Row(children: [
-              Expanded(child: _SmallStat(
-                icon: Icons.groups_rounded, label: 'Groupes',
-                value: _fmtNum(groups), color: _teal)),
-              const SizedBox(width: 10),
-              Expanded(child: _SmallStat(
-                icon: Icons.people_rounded, label: 'Utilisateurs',
-                value: _fmtNum(users), color: _orange)),
-              const SizedBox(width: 10),
-              Expanded(child: _SmallStat(
-                icon: Icons.phone_android_rounded, label: 'Sessions',
-                value: connected ? '1' : '0', color: _blue)),
-            ]),
-            const SizedBox(height: 10),
-
-            Row(children: [
-              Expanded(child: _SmallStat(
-                icon: Icons.timer_rounded, label: 'Uptime',
-                value: _fmtUptime(uptime), color: _teal)),
-              const SizedBox(width: 10),
-              Expanded(child: _SmallStat(
-                icon: Icons.memory_rounded, label: 'RAM Bot',
-                value: ram > 0 ? '${ram}MB' : '--', color: _blue)),
-              const SizedBox(width: 10),
-              Expanded(child: _SmallStat(
-                icon: Icons.code_rounded, label: 'Node.js',
-                value: nodeVer.isNotEmpty ? nodeVer.replaceAll('v', '') : '--',
-                color: _purple)),
-            ]),
-            const SizedBox(height: 20),
-
-            // ── Ressources Bot (Node.js) ──────────────────────────────────
-            _SectionLabel(label: 'Ressources Bot (Node.js)'),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _card,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: _border),
-              ),
-              child: Column(children: [
-                _ResourceRow(icon: Icons.timer_rounded, label: 'Uptime',
-                    value: _fmtUptime(uptime), color: _teal),
-                const SizedBox(height: 14),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    const Icon(Icons.memory_rounded, size: 15, color: _muted),
-                    const SizedBox(width: 6),
-                    const Text('Heap RAM', style: TextStyle(color: _muted, fontSize: 12)),
-                    const Spacer(),
-                    Text(ram > 0 ? '$ram MB / $ramTotal MB' : '--',
-                        style: const TextStyle(color: _ink, fontSize: 12,
-                            fontWeight: FontWeight.w700)),
-                  ]),
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: ramPct,
-                      backgroundColor: _border,
-                      valueColor: AlwaysStoppedAnimation(
-                          ramPct > 0.8 ? _red : ramPct > 0.6 ? _orange : _blue),
-                      minHeight: 7,
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 14),
-                _ResourceRow(icon: Icons.verified_rounded, label: 'Version',
-                    value: 'v2.0 — Stable', color: _g),
-                if (nodeVer.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  _ResourceRow(icon: Icons.code_rounded, label: 'Node.js',
-                      value: nodeVer, color: _purple),
-                ],
-              ]),
-            ),
-            const SizedBox(height: 20),
-
-            // ── Ressources Téléphone ─────────────────────────────────────
-            _SectionLabel(label: 'Ressources Téléphone'),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _card,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: _border),
-              ),
-              child: Column(children: [
-
-                // RAM téléphone
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Container(
-                      width: 28, height: 28,
-                      decoration: BoxDecoration(
-                        color: _g.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(7),
-                      ),
-                      child: const Icon(Icons.memory_rounded, size: 14, color: _g),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('RAM Téléphone',
-                          style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 2),
-                      Text(
-                        devRamTotal > 0
-                            ? '${_fmtMb(devRamUsed)} utilisés / ${_fmtMb(devRamTotal)} total'
-                            : 'Chargement…',
-                        style: const TextStyle(color: _ink, fontSize: 12,
-                            fontWeight: FontWeight.w700)),
-                    ])),
-                    if (devRamTotal > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: (devRamPct > 0.8 ? _red : devRamPct > 0.6 ? _orange : _g)
-                              .withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text('${(devRamPct * 100).round()}%',
-                            style: TextStyle(
-                              color: devRamPct > 0.8 ? _red : devRamPct > 0.6 ? _orange : _g,
-                              fontSize: 11, fontWeight: FontWeight.w800,
-                            )),
-                      ),
-                  ]),
-                  if (devRamTotal > 0) ...[
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: devRamPct,
-                        backgroundColor: _border,
-                        valueColor: AlwaysStoppedAnimation(
-                            devRamPct > 0.8 ? _red : devRamPct > 0.6 ? _orange : _g),
-                        minHeight: 7,
-                      ),
-                    ),
-                  ],
-                ]),
-
-                const SizedBox(height: 16),
-                Container(height: 1, color: _border),
-                const SizedBox(height: 16),
-
-                // CPU
-                Row(children: [
-                  Expanded(child: _DevBox(
-                    icon: Icons.developer_board_rounded,
-                    label: 'Processeur',
-                    value: cpuName.isNotEmpty
-                        ? cpuName.length > 20
-                            ? '${cpuName.substring(0, 20)}…'
-                            : cpuName
-                        : '—',
-                    color: _blue,
-                  )),
-                  const SizedBox(width: 10),
-                  Expanded(child: _DevBox(
-                    icon: Icons.grid_view_rounded,
-                    label: 'Cœurs CPU',
-                    value: cpuCores > 0 ? '$cpuCores cœurs' : '—',
-                    color: _blue,
-                  )),
-                ]),
-                const SizedBox(height: 10),
-
-                Row(children: [
-                  Expanded(child: _DevBox(
-                    icon: Icons.speed_rounded,
-                    label: 'Freq. Max',
-                    value: cpuFreq > 0 ? '${cpuFreq} MHz' : '—',
-                    color: _orange,
-                  )),
-                  const SizedBox(width: 10),
-                  Expanded(child: _DevBox(
-                    icon: Icons.storage_rounded,
-                    label: 'Stockage',
-                    value: storTotal != '--' ? '$storUsed / $storTotal GB' : '—',
-                    color: _purple,
-                  )),
-                ]),
-
-                if (storTotal != '--') ...[
-                  const SizedBox(height: 12),
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      const Icon(Icons.storage_rounded, size: 13, color: _muted),
-                      const SizedBox(width: 6),
-                      const Text('Stockage interne',
-                          style: TextStyle(color: _muted, fontSize: 11)),
-                      const Spacer(),
-                      Text('${(storPct * 100).round()}% utilisé',
-                          style: const TextStyle(color: _ink, fontSize: 11,
-                              fontWeight: FontWeight.w700)),
-                    ]),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: storPct,
-                        backgroundColor: _border,
-                        valueColor: AlwaysStoppedAnimation(
-                            storPct > 0.9 ? _red : storPct > 0.7 ? _orange : _purple),
-                        minHeight: 6,
-                      ),
-                    ),
-                  ]),
-                ],
-              ]),
-            ),
-            const SizedBox(height: 20),
-
-            // ── Top commandes ─────────────────────────────────────────────
+            // ── Top Commandes ────────────────────────────────────────────────
             if (topCmds.isNotEmpty) ...[
-              _SectionLabel(label: 'Top Commandes', trailing: '5 premières'),
+              const SizedBox(height: 22),
+              _SecLabel(label: 'Top Commandes', trailing: '7 jours')
+                  .animate().fadeIn(delay: 280.ms),
               const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: _card,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _border),
-                ),
-                child: Column(
-                  children: topCmds.take(5).toList().asMap().entries.map((e) {
-                    final cmd   = e.value['command'] as String? ?? '';
-                    final count = e.value['count'] as int? ?? 0;
-                    final pct   = count / maxCount;
-                    const colors = [_g, _blue, _purple, _orange, _red];
-                    final color  = colors[e.key % colors.length];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Row(children: [
-                          Container(
-                            width: 20, height: 20,
-                            decoration: BoxDecoration(
-                              color: color.withOpacity(.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(child: Text('${e.key + 1}',
-                                style: TextStyle(color: color, fontSize: 9,
-                                    fontWeight: FontWeight.w900))),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(cmd,
-                              style: TextStyle(fontSize: 13, color: color,
-                                  fontWeight: FontWeight.w700,
-                                  fontFamily: 'monospace'))),
-                          Text(_fmtNum(count),
-                              style: const TextStyle(fontSize: 12, color: _ink,
-                                  fontWeight: FontWeight.w800)),
-                        ]),
-                        const SizedBox(height: 6),
-                        Row(children: [
-                          const SizedBox(width: 28),
-                          Expanded(child: ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: LinearProgressIndicator(
-                              value: pct.clamp(0.0, 1.0),
-                              backgroundColor: color.withOpacity(.08),
-                              valueColor: AlwaysStoppedAnimation(color),
-                              minHeight: 5,
-                            ),
-                          )),
-                        ]),
-                      ]),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 20),
+              _TopCmdsCard(commands: topCmds.take(5).toList(), maxCount: maxCount)
+                  .animate().fadeIn(duration: 300.ms, delay: 300.ms),
             ],
 
-            // ── Actions rapides ───────────────────────────────────────────
-            _SectionLabel(label: 'Actions rapides'),
-            const SizedBox(height: 10),
-            _QuickAction(
-              icon: Icons.qr_code_2_rounded,
-              title: connected ? 'Bot déjà connecté' : 'Scanner un QR code',
-              desc:  connected ? 'Compte lié • +$phone' : 'Lier un compte WhatsApp',
-              color: _g, disabled: connected,
-            ),
-            const SizedBox(height: 8),
-            _QuickAction(
-              icon: Icons.bar_chart_rounded,
-              title: 'Analytics',
-              desc:  'Performance et statistiques détaillées',
-              color: _purple,
-            ),
-            const SizedBox(height: 8),
-            _QuickAction(
-              icon: Icons.receipt_long_rounded,
-              title: 'Logs d\'activité',
-              desc:  'Historique des messages et commandes',
-              color: _blue,
-            ),
-
-            if (!connected && !_loading) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: _red.withOpacity(.06),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _red.withOpacity(.2)),
-                ),
-                child: const Row(children: [
-                  Icon(Icons.info_outline_rounded, color: _red, size: 18),
-                  SizedBox(width: 10),
-                  Expanded(child: Text(
-                    'Le bot est hors ligne. Envoie .ping sur WhatsApp ou redémarre le serveur Node.js.',
-                    style: TextStyle(color: _red, fontSize: 12),
-                  )),
-                ]),
-              ),
-            ],
           ],
         ),
       ),
     );
   }
-
-  String _fmtMb(int mb) {
-    if (mb >= 1024) return '${(mb / 1024).toStringAsFixed(1)} GB';
-    return '$mb MB';
-  }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Hero Banner Card
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Dashboard Header ─────────────────────────────────────────────────────────
+class _DashHeader extends StatelessWidget {
+  final bool loading;
+  final AsyncCallback onRefresh;
+  const _DashHeader({required this.loading, required this.onRefresh});
 
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      const Text('Dashboard', style: TextStyle(
+          fontSize: 26, fontWeight: FontWeight.w900,
+          color: _ink, letterSpacing: -0.8)),
+      const Spacer(),
+      if (loading)
+        const SizedBox(width: 18, height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2.5, color: _g))
+      else
+        _RoundBtn(icon: Icons.refresh_rounded, onTap: onRefresh),
+    ],
+  );
+}
+
+// ─── Round icon button ────────────────────────────────────────────────────────
+class _RoundBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  const _RoundBtn({required this.icon, this.onTap});
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      width: 36, height: 36,
+      decoration: BoxDecoration(
+        color: _card, borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _brdr),
+      ),
+      child: Icon(icon, color: _sub, size: 17),
+    ),
+  );
+}
+
+// ─── Section label ────────────────────────────────────────────────────────────
+class _SecLabel extends StatelessWidget {
+  final String label;
+  final String? trailing;
+  const _SecLabel({required this.label, this.trailing});
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Text(label, style: const TextStyle(
+        fontSize: 12, fontWeight: FontWeight.w700,
+        color: _sub, letterSpacing: 0.5)),
+    if (trailing != null) ...[
+      const Spacer(),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+        decoration: BoxDecoration(
+          color: _g.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(trailing!, style: const TextStyle(
+            color: _g, fontSize: 10, fontWeight: FontWeight.w700)),
+      ),
+    ],
+  ]);
+}
+
+// ─── Hero Banner ──────────────────────────────────────────────────────────────
 class _HeroBanner extends StatelessWidget {
   final bool connected;
-  final String name, phone, picUrl, uptime, nodeVer;
+  final String name, phone, picUrl, uptime, ram, node;
   final AnimationController pulse;
 
   const _HeroBanner({
     required this.connected, required this.name, required this.phone,
-    required this.picUrl, required this.uptime, required this.nodeVer,
-    required this.pulse,
+    required this.picUrl, required this.uptime, required this.ram,
+    required this.node, required this.pulse,
   });
 
   @override
   Widget build(BuildContext context) {
-    final accent = connected ? _g : _red;
+    final ac = connected ? _g : _r;
     return Container(
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: connected
-              ? [const Color(0xFF0A1E12), const Color(0xFF081408)]
-              : [const Color(0xFF1C0D0D), const Color(0xFF120A0A)],
+              ? [const Color(0xFF081410), const Color(0xFF050C08), _bg]
+              : [const Color(0xFF14080A), const Color(0xFF0D0507), _bg],
           begin: Alignment.topLeft, end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: accent.withOpacity(0.3), width: 1.2),
-        boxShadow: [BoxShadow(
-          color: accent.withOpacity(0.1),
-          blurRadius: 20, offset: const Offset(0, 6),
-        )],
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: ac.withOpacity(0.22), width: 1.2),
+        boxShadow: [
+          BoxShadow(color: ac.withOpacity(0.08), blurRadius: 28, spreadRadius: -4),
+        ],
       ),
-      child: Column(children: [
-        // ── Bannière ───────────────────────────────────────────────────
-        Container(
-          height: 70,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: connected
-                  ? [_gd.withOpacity(0.35), _g.withOpacity(0.15)]
-                  : [_red.withOpacity(0.25), Colors.transparent],
-              begin: Alignment.centerLeft, end: Alignment.centerRight,
-            ),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
-          ),
-          child: Stack(children: [
-            // Déco cercles
-            Positioned(right: -20, top: -20,
-              child: Container(
-                width: 100, height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accent.withOpacity(0.06),
-                ))),
-            Positioned(right: 40, top: -10,
-              child: Container(
-                width: 60, height: 60,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accent.withOpacity(0.04),
-                ))),
-            // Label Wabot
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(children: [
-                Icon(Icons.auto_awesome_rounded, color: accent.withOpacity(0.6), size: 14),
-                const SizedBox(width: 6),
-                Text('WABOT DASHBOARD',
-                    style: TextStyle(
-                      color: accent.withOpacity(0.8),
-                      fontSize: 10, fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                    )),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: accent.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: accent.withOpacity(0.3)),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    AnimatedBuilder(
-                      animation: pulse,
-                      builder: (_, __) => Container(
-                        width: 6, height: 6,
-                        decoration: BoxDecoration(
-                          color: accent, shape: BoxShape.circle,
-                          boxShadow: [BoxShadow(
-                            color: accent.withOpacity(0.4 + 0.4 * pulse.value),
-                            blurRadius: 4,
-                          )],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(connected ? 'EN LIGNE' : 'HORS LIGNE',
-                        style: TextStyle(color: accent, fontSize: 9,
-                            fontWeight: FontWeight.w800, letterSpacing: 0.6)),
-                  ]),
-                ),
-              ]),
-            ),
-          ]),
-        ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
 
-        // ── Profil row ─────────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-          child: Transform.translate(
-            offset: const Offset(0, -24),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              // Photo de profil WhatsApp
-              Container(
-                width: 68, height: 68,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: connected ? [_g, _gd] : [_red, const Color(0xFFCC3333)],
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  ),
-                  border: Border.all(color: const Color(0xFF0A1E12), width: 3),
-                  boxShadow: [BoxShadow(
-                    color: accent.withOpacity(0.3),
-                    blurRadius: 12, offset: const Offset(0, 4),
-                  )],
-                ),
-                child: picUrl.isNotEmpty
-                    ? ClipOval(child: Image.network(picUrl, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _avatarIcon(connected)))
-                    : _avatarIcon(connected),
+        // Avatar with animated glow ring
+        SizedBox(width: 72, height: 72, child: Stack(children: [
+          AnimatedBuilder(
+            animation: pulse,
+            builder: (_, __) => Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(
+                  color: ac.withOpacity(0.18 + 0.18 * pulse.value),
+                  blurRadius: 14 + 10 * pulse.value,
+                  spreadRadius: 2,
+                )],
               ),
-              const SizedBox(width: 14),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 28),
-                  Text(name,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900,
-                          color: _ink, letterSpacing: -0.3),
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 3),
-                  if (phone.isNotEmpty)
-                    Row(children: [
-                      const Icon(Icons.phone_rounded, size: 12, color: _muted),
-                      const SizedBox(width: 4),
-                      Text('+$phone',
-                          style: const TextStyle(color: _muted, fontSize: 12.5,
-                              fontFamily: 'monospace')),
-                    ]),
-                  const SizedBox(height: 8),
-                  Wrap(spacing: 6, runSpacing: 4, children: [
-                    _Tag('⬆ $uptime', _teal),
-                    if (nodeVer.isNotEmpty) _Tag('Node $nodeVer', _purple),
-                    _Tag(connected ? '● WhatsApp' : '○ Déconnecté', accent),
-                  ]),
-                ],
-              )),
-            ]),
+            ),
           ),
-        ),
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: SweepGradient(
+                colors: [ac, ac.withOpacity(0.3), ac],
+              ),
+            ),
+            padding: const EdgeInsets.all(2.5),
+            child: Container(
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: _card),
+              child: ClipOval(
+                child: picUrl.isNotEmpty
+                    ? Image.network(picUrl, fit: BoxFit.cover, width: 67, height: 67,
+                        errorBuilder: (_, __, ___) => _AvatarFallback(color: ac))
+                    : _AvatarFallback(color: ac),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 2, right: 2,
+            child: AnimatedBuilder(
+              animation: pulse,
+              builder: (_, __) => Container(
+                width: 16, height: 16,
+                decoration: BoxDecoration(
+                  color: ac, shape: BoxShape.circle,
+                  border: Border.all(color: _card, width: 2.5),
+                  boxShadow: [BoxShadow(
+                    color: ac.withOpacity(0.65 * pulse.value), blurRadius: 8)],
+                ),
+              ),
+            ),
+          ),
+        ])),
+
+        const SizedBox(width: 16),
+
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text(name, style: const TextStyle(
+              fontSize: 19, fontWeight: FontWeight.w800,
+              color: _ink, letterSpacing: -0.3),
+              overflow: TextOverflow.ellipsis, maxLines: 1),
+          if (phone.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text('+$phone', style: const TextStyle(
+                color: _sub, fontSize: 12, fontFamily: 'monospace')),
+          ],
+          const SizedBox(height: 10),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            _Pill(icon: Icons.circle, text: connected ? 'EN LIGNE' : 'HORS LIGNE',
+                color: ac, filled: true),
+            if (uptime != '--') _Pill(icon: Icons.timer_outlined, text: uptime, color: _b),
+            if (node.isNotEmpty) _Pill(icon: Icons.code_rounded, text: node, color: _p),
+          ]),
+        ])),
       ]),
     );
   }
-
-  Widget _avatarIcon(bool conn) => Center(child: Icon(
-      conn ? Icons.smart_toy_rounded : Icons.wifi_off_rounded,
-      color: Colors.white, size: 32));
 }
 
-Widget _Tag(String label, Color color) => Container(
-  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-  decoration: BoxDecoration(
-    color: color.withOpacity(0.12),
-    borderRadius: BorderRadius.circular(20),
-    border: Border.all(color: color.withOpacity(0.25)),
-  ),
-  child: Text(label, style: TextStyle(fontSize: 10, color: color,
-      fontWeight: FontWeight.w700)),
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Widgets partagés
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  final String label;
-  final String? trailing;
-  const _SectionLabel({required this.label, this.trailing});
-  @override
-  Widget build(BuildContext context) => Row(children: [
-    Text(label, style: const TextStyle(
-        fontSize: 12, fontWeight: FontWeight.w800,
-        color: _muted, letterSpacing: 0.6)),
-    const Spacer(),
-    if (trailing != null)
-      Text(trailing!, style: const TextStyle(fontSize: 10, color: _muted)),
-  ]);
-}
-
-class _ResourceRow extends StatelessWidget {
-  final IconData icon;
-  final String label, value;
+class _AvatarFallback extends StatelessWidget {
   final Color color;
-  const _ResourceRow({required this.icon, required this.label,
-      required this.value, required this.color});
-  @override
-  Widget build(BuildContext context) => Row(children: [
-    Container(width: 28, height: 28,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(7)),
-      child: Icon(icon, size: 14, color: color)),
-    const SizedBox(width: 10),
-    Text(label, style: const TextStyle(color: _muted, fontSize: 12)),
-    const Spacer(),
-    Text(value, style: const TextStyle(color: _ink, fontSize: 12,
-        fontWeight: FontWeight.w700)),
-  ]);
-}
-
-class _DevBox extends StatelessWidget {
-  final IconData icon;
-  final String label, value;
-  final Color color;
-  const _DevBox({required this.icon, required this.label,
-      required this.value, required this.color});
+  const _AvatarFallback({required this.color});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    width: 67, height: 67,
+    color: color.withOpacity(0.1),
+    child: Icon(Icons.smart_toy_rounded, color: color, size: 30),
+  );
+}
+
+class _Pill extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color color;
+  final bool filled;
+  const _Pill({required this.icon, required this.text, required this.color,
+      this.filled = false});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
     decoration: BoxDecoration(
-      color: color.withOpacity(0.06),
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: color.withOpacity(0.15)),
+      color: color.withOpacity(filled ? 0.14 : 0.08),
+      borderRadius: BorderRadius.circular(20),
+      border: filled ? Border.all(color: color.withOpacity(0.35)) : null,
     ),
-    child: Row(children: [
-      Icon(icon, color: color, size: 15),
-      const SizedBox(width: 8),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontSize: 9, color: _muted,
-            letterSpacing: 0.3)),
-        const SizedBox(height: 2),
-        Text(value, style: TextStyle(fontSize: 12, color: color,
-            fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis),
-      ])),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      if (filled) ...[
+        Container(width: 5, height: 5,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 5),
+      ] else ...[
+        Icon(icon, size: 10, color: color),
+        const SizedBox(width: 4),
+      ],
+      Text(text, style: TextStyle(color: color, fontSize: 10,
+          fontWeight: FontWeight.w800, letterSpacing: 0.3)),
     ]),
   );
 }
 
-class _BigStat extends StatelessWidget {
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+class _StatCard extends StatelessWidget {
   final IconData icon;
-  final String label, value, sub;
+  final String label, value;
   final Color color;
   final double growth;
-  const _BigStat({required this.icon, required this.label, required this.value,
-      required this.color, required this.growth, required this.sub});
+
+  const _StatCard({
+    required this.icon, required this.label, required this.value,
+    required this.color, this.growth = 0,
+  });
 
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: _card,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: color.withOpacity(.2)),
       gradient: LinearGradient(
-        colors: [_card, color.withOpacity(.04)],
+        colors: [_card2, _card],
         begin: Alignment.topLeft, end: Alignment.bottomRight,
       ),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: _brdr),
+      boxShadow: [
+        BoxShadow(color: color.withOpacity(0.06), blurRadius: 20, spreadRadius: -4),
+      ],
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Container(
-          width: 34, height: 34,
+          width: 36, height: 36,
           decoration: BoxDecoration(
-            color: color.withOpacity(.12),
-            borderRadius: BorderRadius.circular(10),
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(11),
           ),
-          child: Icon(icon, size: 17, color: color),
+          child: Icon(icon, color: color, size: 18),
         ),
         const Spacer(),
-        if (growth != 0)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-            decoration: BoxDecoration(
-              color: (growth > 0 ? _g : _red).withOpacity(.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(growth > 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                  size: 10, color: growth > 0 ? _g : _red),
-              const SizedBox(width: 3),
-              Text('${growth.abs().toStringAsFixed(0)}%',
-                  style: TextStyle(fontSize: 9, color: growth > 0 ? _g : _red,
-                      fontWeight: FontWeight.w800)),
-            ]),
-          ),
+        if (growth != 0) _GrowthBadge(value: growth),
       ]),
-      const SizedBox(height: 12),
-      Text(value, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900,
-          color: color, letterSpacing: -0.5)),
-      const SizedBox(height: 4),
-      Row(children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
-            color: _ink)),
-        const SizedBox(width: 6),
-        Text(sub, style: const TextStyle(fontSize: 10, color: _muted)),
-      ]),
+      const SizedBox(height: 14),
+      Text(value, style: const TextStyle(
+          fontSize: 28, fontWeight: FontWeight.w900,
+          color: _ink, letterSpacing: -1.0)),
+      const SizedBox(height: 2),
+      Text(label, style: const TextStyle(
+          fontSize: 11, color: _sub, fontWeight: FontWeight.w500)),
     ]),
   );
 }
 
-class _SmallStat extends StatelessWidget {
+class _GrowthBadge extends StatelessWidget {
+  final double value;
+  const _GrowthBadge({required this.value});
+  @override
+  Widget build(BuildContext context) {
+    final pos = value >= 0;
+    final col = pos ? _g : _r;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: col.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(pos ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+            size: 10, color: col),
+        const SizedBox(width: 3),
+        Text('${value.abs().toStringAsFixed(0)}%',
+            style: TextStyle(color: col, fontSize: 9.5, fontWeight: FontWeight.w800)),
+      ]),
+    );
+  }
+}
+
+// ─── Gradient progress bar ────────────────────────────────────────────────────
+class _GBar extends StatelessWidget {
+  final double value;
+  final Color color;
+  final double height;
+  const _GBar({required this.value, required this.color, this.height = 7});
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(99),
+    child: TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: value.clamp(0.0, 1.0)),
+      duration: const Duration(milliseconds: 900),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, __) => LinearProgressIndicator(
+        value: v,
+        backgroundColor: _brdr,
+        valueColor: AlwaysStoppedAnimation(color),
+        minHeight: height,
+      ),
+    ),
+  );
+}
+
+// ─── Bot resources card ───────────────────────────────────────────────────────
+class _BotResCard extends StatelessWidget {
+  final String uptime, nodeVer;
+  final int ram, ramTotal;
+  final double ramPct;
+
+  const _BotResCard({required this.uptime, required this.ram,
+      required this.ramTotal, required this.ramPct, required this.nodeVer});
+
+  @override
+  Widget build(BuildContext context) {
+    final barCol = ramPct > 0.8 ? _r : ramPct > 0.6 ? _o : _b;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _card, borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _brdr),
+      ),
+      child: Column(children: [
+        Row(children: [
+          _ResChip(icon: Icons.timer_outlined, label: 'Uptime', value: uptime, color: _t),
+          const SizedBox(width: 10),
+          if (nodeVer.isNotEmpty)
+            _ResChip(icon: Icons.code_rounded, label: 'Node.js', value: nodeVer, color: _p)
+          else
+            _ResChip(icon: Icons.verified_rounded, label: 'Version', value: 'v2.0', color: _g),
+        ]),
+        const SizedBox(height: 18),
+        Row(children: [
+          Container(
+            width: 30, height: 30,
+            decoration: BoxDecoration(
+              color: barCol.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.memory_rounded, size: 15, color: barCol),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+            Row(children: [
+              const Text('Heap RAM', style: TextStyle(
+                  color: _sub, fontSize: 12, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Text(ram > 0 ? '$ram / $ramTotal MB' : '--',
+                  style: TextStyle(color: barCol, fontSize: 12,
+                      fontWeight: FontWeight.w800)),
+            ]),
+            const SizedBox(height: 7),
+            _GBar(value: ramPct, color: barCol),
+          ])),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _ResChip extends StatelessWidget {
   final IconData icon;
   final String label, value;
   final Color color;
-  const _SmallStat({required this.icon, required this.label,
+  const _ResChip({required this.icon, required this.label,
       required this.value, required this.color});
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(height: 7),
+        Text(value, style: TextStyle(
+            color: color, fontSize: 15, fontWeight: FontWeight.w800),
+            overflow: TextOverflow.ellipsis),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(color: color.withOpacity(0.6),
+            fontSize: 10, fontWeight: FontWeight.w600)),
+      ]),
+    ),
+  );
+}
+
+// ─── Phone resources card ─────────────────────────────────────────────────────
+class _PhoneResCard extends StatelessWidget {
+  final int ramUsed, ramTotal, cpuCores, cpuFreq;
+  final double ramPct, storPct;
+  final String cpuName, storTotal, storUsed;
+  final String Function(int) fmtMb;
+
+  const _PhoneResCard({
+    required this.ramUsed, required this.ramTotal, required this.ramPct,
+    required this.cpuName, required this.cpuCores, required this.cpuFreq,
+    required this.storTotal, required this.storUsed, required this.storPct,
+    required this.fmtMb,
+  });
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: _card,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: color.withOpacity(.2)),
-    ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  Widget build(BuildContext context) {
+    final ramCol  = ramPct > 0.8 ? _r : ramPct > 0.6 ? _o : _g;
+    final storCol = storPct > 0.9 ? _r : storPct > 0.7 ? _o : _p;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _card, borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _brdr),
+      ),
+      child: Column(children: [
+        _ProgRow(icon: Icons.memory_rounded, label: 'RAM Téléphone',
+            value: ramTotal > 0
+                ? '${fmtMb(ramUsed)} / ${fmtMb(ramTotal)}' : '…',
+            pct: ramPct, color: ramCol),
+        const SizedBox(height: 16),
+        Divider(height: 1, color: _brdr),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(child: _InfoBox(icon: Icons.developer_board_rounded,
+              label: 'Processeur',
+              value: cpuName.isEmpty ? '—'
+                  : (cpuName.length > 18 ? '${cpuName.substring(0, 18)}…' : cpuName),
+              color: _b)),
+          const SizedBox(width: 10),
+          Expanded(child: _InfoBox(icon: Icons.grid_view_rounded,
+              label: 'Cœurs CPU',
+              value: cpuCores > 0 ? '$cpuCores cores' : '—',
+              color: _b)),
+        ]),
+        if (storTotal != '--') ...[
+          const SizedBox(height: 16),
+          Divider(height: 1, color: _brdr),
+          const SizedBox(height: 16),
+          _ProgRow(icon: Icons.storage_rounded, label: 'Stockage',
+              value: '$storUsed / $storTotal GB',
+              pct: storPct, color: storCol),
+        ],
+      ]),
+    );
+  }
+}
+
+class _ProgRow extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  final double pct;
+  final Color color;
+  const _ProgRow({required this.icon, required this.label, required this.value,
+      required this.pct, required this.color});
+  @override
+  Widget build(BuildContext context) => Column(children: [
+    Row(children: [
       Container(
-        width: 30, height: 30,
+        width: 32, height: 32,
         decoration: BoxDecoration(
-          color: color.withOpacity(.12),
+          color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(9),
         ),
         child: Icon(icon, size: 15, color: color),
       ),
-      const SizedBox(height: 10),
-      Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900,
-          color: color), overflow: TextOverflow.ellipsis),
-      const SizedBox(height: 3),
-      Text(label, style: const TextStyle(fontSize: 10, color: _muted,
-          fontWeight: FontWeight.w600)),
+      const SizedBox(width: 10),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+        Text(label, style: const TextStyle(
+            color: _sub, fontSize: 11, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 1),
+        Text(value, style: const TextStyle(
+            color: _ink, fontSize: 13, fontWeight: FontWeight.w700)),
+      ])),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text('${(pct * 100).round()}%',
+            style: TextStyle(color: color, fontSize: 11,
+                fontWeight: FontWeight.w800)),
+      ),
+    ]),
+    const SizedBox(height: 9),
+    _GBar(value: pct, color: color),
+  ]);
+}
+
+class _InfoBox extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  final Color color;
+  const _InfoBox({required this.icon, required this.label,
+      required this.value, required this.color});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.06),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: color.withOpacity(0.14)),
+    ),
+    child: Row(children: [
+      Icon(icon, size: 16, color: color),
+      const SizedBox(width: 8),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+        Text(value, style: const TextStyle(
+            color: _ink, fontSize: 12, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 1),
+        Text(label, style: const TextStyle(color: _muted, fontSize: 10)),
+      ])),
     ]),
   );
 }
 
-class _QuickAction extends StatelessWidget {
-  final IconData icon;
-  final String title, desc;
-  final Color color;
-  final bool disabled;
-  const _QuickAction({required this.icon, required this.title, required this.desc,
-      required this.color, this.disabled = false});
+// ─── Top commands card ────────────────────────────────────────────────────────
+class _TopCmdsCard extends StatelessWidget {
+  final List<Map<String, dynamic>> commands;
+  final int maxCount;
+  const _TopCmdsCard({required this.commands, required this.maxCount});
 
   @override
-  Widget build(BuildContext context) => Opacity(
-    opacity: disabled ? 0.5 : 1.0,
-    child: Container(
-      padding: const EdgeInsets.all(14),
+  Widget build(BuildContext context) {
+    const colors = [_g, _b, _p, _o, _t];
+    return Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: disabled ? _border : color.withOpacity(.2)),
+        color: _card, borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _brdr),
       ),
-      child: Row(children: [
-        Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-            color: color.withOpacity(.1),
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontSize: 13.5, color: _ink,
-              fontWeight: FontWeight.w700)),
-          const SizedBox(height: 3),
-          Text(desc, style: const TextStyle(fontSize: 11.5, color: _muted)),
-        ])),
-        Icon(Icons.chevron_right_rounded, color: _muted.withOpacity(.5), size: 18),
-      ]),
-    ),
-  );
+      child: Column(
+        children: commands.asMap().entries.map((e) {
+          final cmd   = e.value['command'] as String? ?? '';
+          final count = e.value['count']   as int?    ?? 0;
+          final pct   = maxCount > 0 ? count / maxCount : 0.0;
+          final col   = colors[e.key % colors.length];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(
+                  width: 22, height: 22,
+                  decoration: BoxDecoration(
+                    color: col.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Center(child: Text('${e.key + 1}',
+                      style: TextStyle(color: col, fontSize: 10,
+                          fontWeight: FontWeight.w900))),
+                ),
+                const SizedBox(width: 10),
+                Expanded(child: Text('.${cmd}', style: const TextStyle(
+                    color: _ink, fontSize: 13, fontWeight: FontWeight.w600,
+                    fontFamily: 'monospace'), overflow: TextOverflow.ellipsis)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: col.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text('$count', style: TextStyle(
+                      color: col, fontSize: 11, fontWeight: FontWeight.w800)),
+                ),
+              ]),
+              const SizedBox(height: 7),
+              _GBar(value: pct.toDouble(), color: col, height: 5),
+            ]),
+          );
+        }).toList(),
+      ),
+    );
+  }
 }
+
