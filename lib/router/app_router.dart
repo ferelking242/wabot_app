@@ -15,6 +15,7 @@ import '../features/automation/presentation/automation_screen.dart';
   import '../features/bot/presentation/bot_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
+import '../features/shell/presentation/shell_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -76,6 +77,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppConstants.routeSettings,
             pageBuilder: (_, state) => _fadeTransition(state, const SettingsScreen()),
+          ),
+          GoRoute(
+            path: AppConstants.routeShell,
+            pageBuilder: (_, state) => _fadeTransition(state, const ShellScreen()),
           ),
         ],
       ),
