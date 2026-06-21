@@ -10,8 +10,12 @@ abstract final class AppConstants {
   static const String keyLanguage       = 'language';
 
   // Legacy (kept for migration)
-  static const String keyApiUrl = 'api_url';
-  static const String keyApiKey = 'wabot_api_key';
+  static const String keyApiUrl  = 'api_url';
+  static const String keyApiKey  = 'wabot_api_key';
+  static const String keyAuthPin = 'auth_pin';
+
+  // ── Default values ────────────────────────────────────────────────────────
+  static const String defaultApiUrl = 'http://localhost:3001';
 
   // ── Named routes ──────────────────────────────────────────────────────────
   static const String routeSplash     = '/';
@@ -29,6 +33,7 @@ abstract final class AppConstants {
   static const String routeCommands   = '/commands';
   static const String routeSettings   = '/settings';
   static const String routeBot         = '/bot';
+  static const String routeShell       = '/shell';
 
   // ── API paths ─────────────────────────────────────────────────────────────
   static const String apiStatus   = '/api/v1/instance/status';
