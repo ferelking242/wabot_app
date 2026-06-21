@@ -305,7 +305,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 // ─── Dashboard Header ─────────────────────────────────────────────────────────
 class _DashHeader extends StatelessWidget {
   final bool loading;
-  final AsyncCallback onRefresh;
+  final Future<void> Function() onRefresh;
   const _DashHeader({required this.loading, required this.onRefresh});
 
   @override

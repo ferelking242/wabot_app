@@ -383,7 +383,7 @@ class _BotScreenState extends ConsumerState<BotScreen>
 class _BotHeader extends StatelessWidget {
   final bool connected, loading;
   final AnimationController pulse;
-  final AsyncCallback onRefresh;
+  final Future<void> Function() onRefresh;
   const _BotHeader({required this.connected, required this.loading,
       required this.pulse, required this.onRefresh});
 
