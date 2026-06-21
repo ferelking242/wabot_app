@@ -1,0 +1,76 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build iOS IPA
+    runs-on: macos-14
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter 3.29.3
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          channel: 'stable'
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Fix iOS deployment target (iOS 13 minimum for Flutter 3.29)
+        run: |
+          # Update Podfile deployment target
+          if [ -f ios/Podfile ]; then
+            sed -i '' "s/platform :ios, '[0-9.]*/platform :ios, '13.0/" ios/Podfile || true
+          fi
+          # Update project.pbxproj deployment target
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 13.0;/g' \
+            ios/Runner.xcodeproj/project.pbxproj || true
+          echo "Deployment target set to 13.0 (compatible iOS 15.8.5+)"
+
+      - name: Fix Info.plist bundle name
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Wabot" ios/Runner/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Set :CFBundleName wabot_app" ios/Runner/Info.plist || true
+          echo "Bundle name fixed"
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update 2>&1 | tail -20
+        env:
+          LANG: en_US.UTF-8
+
+      - name: Build iOS (no code sign — simulator + unsigned IPA)
+        run: |
+          flutter build ios --release --no-codesign \
+            --dart-define=FLUTTER_BUILD_NAME=1.1.0 \
+            --dart-define=FLUTTER_BUILD_NUMBER=1
+        env:
+          LANG: en_US.UTF-8
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p build/ios/iphoneos/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/Runner.app
+          cd build/ios/iphoneos
+          zip -r wabot-unsigned.ipa Payload
+          ls -lh wabot-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wabot-ios-unsigned-${{ github.sha }}
+          path: build/ios/iphoneos/wabot-unsigned.ipa
+          retention-days: 30
+
+      - name: IPA size
+        run: ls -lh build/ios/iphoneos/*.ipa || true
