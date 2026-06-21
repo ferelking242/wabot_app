@@ -24,8 +24,9 @@ abstract final class AppColors {
   static const Color online = Color(0xFF25D366);
   static const Color idle = Color(0xFFFAA61A);
   static const Color offline = Color(0xFF747F8D);
-  static const Color error = Color(0xFFED4245);
-  static const Color warning = Color(0xFFFEE75C);
+  static const Color error   = Color(0xFFED4245);
+  static const Color warning = Color(0xFFFAA61A);
+  static const Color success = Color(0xFF25D366);
   static const Color info = Color(0xFF5865F2);
 
   // Log level colors
