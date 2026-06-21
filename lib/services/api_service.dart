@@ -295,6 +295,15 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> getQueueStats() async {
+    try {
+      final res = await _dio.get('/api/v1/instance/queue');
+      return (res.data as Map<String, dynamic>?) ?? {};
+    } catch (_) {
+      return {};
+    }
+  }
+
   // ── Mock fallbacks (metrics / analytics only) ────────────────────────────
 
   Map<String, dynamic> _mockMetrics() => {
