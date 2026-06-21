@@ -67,6 +67,14 @@ const kNavGroups = [
       route: AppConstants.routeAutomation,
     ),
   ]),
+  WNavGroup(label: 'OUTILS', items: [
+    WNavItem(
+      icon: Icons.code_outlined,
+      activeIcon: Icons.code_rounded,
+      label: 'Shell',
+      route: AppConstants.routeShell,
+    ),
+  ]),
 ];
 
 List<WNavItem> get kAllNavItems => [
