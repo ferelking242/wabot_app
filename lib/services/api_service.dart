@@ -337,6 +337,28 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> checkBundleUpdate() async {
+    try {
+      final res = await _dio.get('/api/v1/update/check-bundle');
+      return res.data as Map<String, dynamic>? ?? {};
+    } catch (_) {
+      return {'success': false, 'error': 'Impossible de joindre le bot'};
+    }
+  }
+
+  Future<bool> applyBundleUpdate(String? sha) async {
+    try {
+      await _dio.post(
+        '/api/v1/update/apply-bundle',
+        data: {'sha': sha ?? ''},
+        options: Options(receiveTimeout: const Duration(minutes: 2)),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Map<String, dynamic> _mockAnalytics() => {
     'period': '7d',
     'totalMessages': 0, 'totalCommands': 0,

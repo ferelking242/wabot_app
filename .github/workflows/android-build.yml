@@ -86,6 +86,20 @@ jobs:
       - name: Copier le bundle dans Flutter assets
         run: cp wabot-android-src/bundle.js assets/nodejs-project/main.js
 
+      - name: Publier bundle.js dans le repo (pour mise à jour OTA)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add wabot-android-src/bundle.js assets/nodejs-project/main.js
+          if git diff --cached --quiet; then
+            echo "bundle.js inchangé, pas de commit nécessaire"
+          else
+            git commit -m "chore(android): rebuild bundle.js [skip ci]"
+            git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/ferelking242/wabot_app.git
+            git push origin main
+            echo "✅ bundle.js commité et poussé"
+          fi
+
       - name: Cache Node.js Mobile binaries
         id: cache-nodejs-mobile
         uses: actions/cache@v4

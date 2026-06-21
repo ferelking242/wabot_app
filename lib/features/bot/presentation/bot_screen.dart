@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert' show LineSplitter;
-import 'dart:io' show File, Process;
+import 'dart:io' show File, Platform, Process;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -190,10 +190,15 @@ class _BotScreenState extends ConsumerState<BotScreen>
     }
   }
 
+  bool get _isAndroid => !kIsWeb && Platform.isAndroid;
+
   Future<void> _checkForUpdate() async {
     setState(() { _updateChecking = true; _updateError = null; });
     try {
-      final info = await ref.read(apiServiceProvider).checkForUpdate();
+      final api  = ref.read(apiServiceProvider);
+      final info = _isAndroid
+          ? await api.checkBundleUpdate()
+          : await api.checkForUpdate();
       if (mounted) setState(() { _updateInfo = info; _updateChecking = false; });
     } catch (e) {
       if (mounted) setState(() { _updateError = e.toString(); _updateChecking = false; });
@@ -205,7 +210,10 @@ class _BotScreenState extends ConsumerState<BotScreen>
     if (sha == null) return;
     setState(() { _updateApplying = true; _updateError = null; });
     try {
-      final ok = await ref.read(apiServiceProvider).triggerUpdate(sha);
+      final api = ref.read(apiServiceProvider);
+      final ok  = _isAndroid
+          ? await api.applyBundleUpdate(sha)
+          : await api.triggerUpdate(sha);
       if (mounted) {
         if (ok) {
           _showSnack('⬇ Mise à jour lancée — le bot redémarre dans ~30s', _g);
