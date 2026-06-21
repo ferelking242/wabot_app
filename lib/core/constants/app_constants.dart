@@ -37,7 +37,10 @@ abstract final class AppConstants {
   static const String apiInfo     = '/api/v1/instance/info';
   static const String apiMessages = '/api/v1/messages';
   static const String apiLogs     = '/api/v1/logs';
-  static const String apiGroups   = '/api/v1/groups';
+  static const String apiGroups       = '/api/v1/groups';
+  static const String apiUpdateCheck  = '/api/v1/update/check';
+  static const String apiUpdateStatus = '/api/v1/update/status';
+  static const String apiUpdateApply  = '/api/v1/update/apply';
 
   // ── WebSocket ─────────────────────────────────────────────────────────────
   static const int wsReconnectDelay    = 3000;

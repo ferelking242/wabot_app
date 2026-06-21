@@ -307,6 +307,36 @@ class ApiService {
     'messagesHistory': List.generate(7,  (i) => {'day': i, 'count': 0}),
   };
 
+  // ── Bot update ───────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> checkForUpdate() async {
+    try {
+      final res = await _dio.get(AppConstants.apiUpdateCheck);
+      return res.data as Map<String, dynamic>? ?? {};
+    } catch (_) {
+      return {'success': false, 'error': 'Impossible de joindre le bot'};
+    }
+  }
+
+  Future<Map<String, dynamic>> getUpdateStatus() async {
+    try {
+      final res = await _dio.get(AppConstants.apiUpdateStatus);
+      final d = res.data as Map<String, dynamic>? ?? {};
+      return d['update'] as Map<String, dynamic>? ?? {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<bool> triggerUpdate(String sha) async {
+    try {
+      await _dio.post(AppConstants.apiUpdateApply, data: {'sha': sha});
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Map<String, dynamic> _mockAnalytics() => {
     'period': '7d',
     'totalMessages': 0, 'totalCommands': 0,

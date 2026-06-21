@@ -46,6 +46,12 @@ class _BotScreenState extends ConsumerState<BotScreen>
   bool _paused = false;
   Map<String, dynamic> _deviceInfo = {};
 
+  // Update state
+  Map<String, dynamic>? _updateInfo;
+  bool _updateChecking = false;
+  bool _updateApplying = false;
+  String? _updateError;
+
   static const _TAG = 'BotScreen';
 
   @override
@@ -181,6 +187,36 @@ class _BotScreenState extends ConsumerState<BotScreen>
         _deviceInfo['rom']  = '—';
         _deviceInfo['free'] = '—';
       });
+    }
+  }
+
+  Future<void> _checkForUpdate() async {
+    setState(() { _updateChecking = true; _updateError = null; });
+    try {
+      final info = await ref.read(apiServiceProvider).checkForUpdate();
+      if (mounted) setState(() { _updateInfo = info; _updateChecking = false; });
+    } catch (e) {
+      if (mounted) setState(() { _updateError = e.toString(); _updateChecking = false; });
+    }
+  }
+
+  Future<void> _applyUpdate() async {
+    final sha = _updateInfo?['latestSha'] as String?;
+    if (sha == null) return;
+    setState(() { _updateApplying = true; _updateError = null; });
+    try {
+      final ok = await ref.read(apiServiceProvider).triggerUpdate(sha);
+      if (mounted) {
+        if (ok) {
+          _showSnack('⬇ Mise à jour lancée — le bot redémarre dans ~30s', _g);
+          setState(() { _updateInfo = null; _updateApplying = false; });
+        } else {
+          _showSnack('Erreur lors de la mise à jour', _red);
+          setState(() => _updateApplying = false);
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() { _updateError = e.toString(); _updateApplying = false; });
     }
   }
 
@@ -343,6 +379,21 @@ class _BotScreenState extends ConsumerState<BotScreen>
                 _showSnack('Statut actualisé ✓', _cyan);
               }),
             ).animate().fadeIn(duration: 300.ms, delay: 100.ms),
+
+            const SizedBox(height: 24),
+
+            // ── Mise à jour ───────────────────────────────────────────────
+            const _SecLabel(label: 'Mise à jour du bot')
+                .animate().fadeIn(delay: 120.ms),
+            const SizedBox(height: 10),
+            _UpdateBox(
+              updateInfo: _updateInfo,
+              checking: _updateChecking,
+              applying: _updateApplying,
+              error: _updateError,
+              onCheck: _checkForUpdate,
+              onApply: _applyUpdate,
+            ).animate().fadeIn(duration: 300.ms, delay: 130.ms),
 
             const SizedBox(height: 24),
 
@@ -1393,4 +1444,205 @@ class _FullLogLine extends StatelessWidget {
       default:      return Icons.info_outline_rounded;
     }
   }
+}
+
+// ─── Update Box ───────────────────────────────────────────────────────────────
+class _UpdateBox extends StatelessWidget {
+  final Map<String, dynamic>? updateInfo;
+  final bool checking, applying;
+  final String? error;
+  final VoidCallback onCheck, onApply;
+
+  const _UpdateBox({
+    required this.updateInfo, required this.checking,
+    required this.applying, required this.error,
+    required this.onCheck, required this.onApply,
+  });
+
+  String _short(String? sha) =>
+      (sha != null && sha.length >= 7) ? sha.substring(0, 7) : (sha ?? '—');
+
+  @override
+  Widget build(BuildContext context) {
+    final hasUpdate  = updateInfo?['hasUpdate'] == true;
+    final latestSha  = updateInfo?['latestSha'] as String?;
+    final currentSha = updateInfo?['currentSha'] as String?;
+    final apiError   = updateInfo?['error'] as String?;
+    final busy       = checking || applying;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: hasUpdate
+            ? _orange.withOpacity(0.45) : _brdr),
+        boxShadow: [BoxShadow(
+          color: (hasUpdate ? _orange : Colors.black).withOpacity(0.08),
+          blurRadius: 16, offset: const Offset(0, 4))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+        // ── Badge état ──────────────────────────────────────────────────
+        if (updateInfo != null && apiError == null) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: hasUpdate
+                  ? _orange.withOpacity(0.12) : _g.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                  color: hasUpdate
+                      ? _orange.withOpacity(0.4) : _g.withOpacity(0.4)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(
+                hasUpdate
+                    ? Icons.system_update_alt_rounded
+                    : Icons.check_circle_outline_rounded,
+                color: hasUpdate ? _orange : _g, size: 13),
+              const SizedBox(width: 6),
+              Text(
+                hasUpdate
+                    ? 'Mise à jour disponible !'
+                    : 'Bot à jour ✓',
+                style: TextStyle(
+                  color: hasUpdate ? _orange : _g,
+                  fontSize: 11, fontWeight: FontWeight.w700)),
+            ]),
+          ),
+          const SizedBox(height: 12),
+
+          // SHA courant / dernier
+          Row(children: [
+            _ShaRow(label: 'Actuel', sha: _short(currentSha), color: _sub),
+            const SizedBox(width: 16),
+            _ShaRow(
+                label: 'Dernier',
+                sha: _short(latestSha),
+                color: hasUpdate ? _orange : _g),
+          ]),
+          const SizedBox(height: 14),
+        ],
+
+        // ── Erreur ──────────────────────────────────────────────────────
+        if ((error != null || apiError != null) && !busy) ...[
+          Row(children: [
+            const Icon(Icons.error_outline_rounded, color: _red, size: 14),
+            const SizedBox(width: 6),
+            Expanded(child: Text(
+              error ?? apiError ?? '',
+              style: const TextStyle(color: _red, fontSize: 11),
+              maxLines: 2, overflow: TextOverflow.ellipsis)),
+          ]),
+          const SizedBox(height: 12),
+        ],
+
+        // ── Boutons ─────────────────────────────────────────────────────
+        Row(children: [
+          // Check for update
+          Expanded(child: _UpdateBtn(
+            icon: Icons.search_rounded,
+            label: 'Vérifier',
+            sublabel: 'Check update',
+            color: _blue,
+            loading: checking,
+            disabled: busy,
+            onTap: onCheck,
+          )),
+          if (hasUpdate) ...[
+            const SizedBox(width: 10),
+            // Apply update
+            Expanded(child: _UpdateBtn(
+              icon: Icons.system_update_alt_rounded,
+              label: 'Mettre à jour',
+              sublabel: 'Apply & restart',
+              color: _orange,
+              loading: applying,
+              disabled: busy,
+              onTap: onApply,
+            )),
+          ],
+        ]),
+      ]),
+    );
+  }
+}
+
+class _ShaRow extends StatelessWidget {
+  final String label, sha;
+  final Color color;
+  const _ShaRow({required this.label, required this.sha, required this.color});
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(label, style: TextStyle(
+        color: _sub, fontSize: 9.5, fontWeight: FontWeight.w600,
+        letterSpacing: 0.4)),
+    const SizedBox(height: 2),
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(sha, style: TextStyle(
+          color: color, fontSize: 11.5, fontFamily: 'monospace',
+          fontWeight: FontWeight.w700)),
+    ),
+  ]);
+}
+
+class _UpdateBtn extends StatefulWidget {
+  final IconData icon;
+  final String label, sublabel;
+  final Color color;
+  final bool loading, disabled;
+  final VoidCallback onTap;
+  const _UpdateBtn({required this.icon, required this.label,
+      required this.sublabel, required this.color,
+      required this.loading, required this.disabled, required this.onTap});
+  @override
+  State<_UpdateBtn> createState() => _UpdateBtnState();
+}
+
+class _UpdateBtnState extends State<_UpdateBtn> {
+  bool _pressed = false;
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTapDown: (_) { if (!widget.disabled) setState(() => _pressed = true); },
+    onTapUp:   (_) => setState(() => _pressed = false),
+    onTapCancel: () => setState(() => _pressed = false),
+    onTap: widget.disabled ? null : widget.onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
+      padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 12),
+      decoration: BoxDecoration(
+        color: _pressed
+            ? widget.color.withOpacity(0.22)
+            : widget.color.withOpacity(0.09),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(
+            color: widget.color.withOpacity(_pressed ? 0.55 : 0.25),
+            width: 1.2),
+      ),
+      child: widget.loading
+          ? Center(child: SizedBox(width: 18, height: 18,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: widget.color)))
+          : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(widget.icon, color: widget.color, size: 17),
+              const SizedBox(width: 8),
+              Column(crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min, children: [
+                Text(widget.label, style: TextStyle(
+                    color: widget.color, fontSize: 12,
+                    fontWeight: FontWeight.w700)),
+                Text(widget.sublabel, style: TextStyle(
+                    color: widget.color.withOpacity(0.55), fontSize: 9)),
+              ]),
+            ]),
+    ),
+  );
 }
